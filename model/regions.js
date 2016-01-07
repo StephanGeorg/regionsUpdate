@@ -27,13 +27,19 @@ module.exports = function(params) {
     admin: 0,
     fuzzy: 0,
     notgeo: 0,
-    reset: 1,
+    reset: 0,
     run: 0,
   };
 
   this.params = {};
 
   this.getQueryOSM = function() {
+    var region = this.params[this.run.region];
+
+    return {
+      id: region.id,
+      fields: 'osm_id,bbox,center'
+    };
 
   };
 
@@ -96,7 +102,11 @@ module.exports = function(params) {
     }
 
     if(this.run.admin < (this.run.maxLevel-1)) {
-      ++this.run.admin;
+      if(!this.run.reset){
+        ++this.run.admin;
+      } else {
+        this.run.reset = 0;
+      }
     } else {
       this.run.admin = 0;
       if(!this.run.fuzzy){
@@ -127,6 +137,7 @@ module.exports = function(params) {
   };
 
   this.resetRun = function(){
+      console.log();
       this.run.region++;
       this.run.notgeo = 0;
       this.run.fuzzy = 0;
@@ -134,15 +145,18 @@ module.exports = function(params) {
       this.run.admin = 0;
   };
 
-  this.parseResult = function(type, result) {
-    if(result.totalResultsCount) {
-      if(result.geonames.length > 1) {
-        return result.geonames[0];
-      } else {
-        return result.geonames[0];
-      }
+  this.parseResult = function(type, result, callback) {
+
+    switch(type) {
+      case 'geonames': gn.parseResult(result,true,function(err,res){
+                          callback(err,res);
+                       }); break;
+      case 'osm':      return osm.parseResult(result);
+      default: throw('Parser not defined!');
     }
+
     return false;
+
   };
 
   this.sync = function(type,params,callback) {
@@ -168,25 +182,44 @@ module.exports = function(params) {
       var q = self.getQueryGeonames(),
           result = {};
       if(q) {
+        // search geoname
         gn.get('search',q,function(err_gnget,res_gnget){
           if(err_gnget) {
             callback(err_gnget);
-          } else {
-            result = self.parseResult('geoname',res_gnget);
-            if(result) {
-
-                console.log("Geonames: ✅  GeonameID: "  + result.geonameId.toString().green + " osmID: " + self.params[self.run.region].id.toString().green);
-                console.log("Geonames: ✅  Geoname: "  + result.name.green);
-                callback(null,res_gnget);
-
-                if(self.run.region < (self.run.maxRegion-1)) {
+          }
+          if(res_gnget.totalResultsCount) {
+            console.log("Geonames: Search found ...".green);
+            console.log("Geonames: Get geonameID ...".green);
+            // parse result and get detailed data
+            self.parseResult('geonames',res_gnget,function(err_detail,res_detail){
+              if(res_detail) {
+                console.log("Geonames: geonameID found ...".green);
+                // save data to db
+                self.save(self.params[self.run.region].id,{geodata:res_detail},1,function(err_save,res_save){
                   self.resetRun();
-                  getSync();
-                }
-            } else {
-              console.log("Geonames: not found ...");
-              getSync();
-            }
+                  self.run.reset = 1;
+                  if(res_save) {
+                    if(self.run.region < (self.run.maxRegion-1)) {
+                      getSync();
+                      return;
+                    }
+                  } else {
+                    getSync();
+                    return;
+                  }
+                });
+                return;
+              } else {
+                console.log("Geonames: geonameID not found ...".red);
+                getSync();
+                return;
+              }
+            });
+            return;
+          } else {
+            console.log("Geonames: Search not found ...".red);
+            getSync();
+            return;
           }
         });
       }
@@ -196,28 +229,23 @@ module.exports = function(params) {
 
   };
 
-  this.syncOSM = function(params,callback){
+  this.syncOSM = function(callback){
 
     var query = {},
         self = this;
 
     var getSync = function(){
-      var q = self.getQueryOsm(),
+      var q = self.getQueryOSM(),
           result = {};
       if(q) {
-        osm.get('search',q,function(err_osm,res_osm){
+        osm.get('get',q,function(err_osm,res_osm){
           if(err_osm) {
             callback(err_osm);
           } else {
             result = self.parseResult('osm',res_osm);
             if(result) {
-
-                console.log(res_osm);
-
-                //console.log("OSM: ✅  GeonameID: "  + result.geonameId.toString().green + " osmID: " + self.params[self.run.region].id.toString().green);
-                //console.log("OSM: ✅  Geoname: "  + result.name.green);
-                callback(null,res_osm);
-
+                console.log("OSM: ✅  osm_id: "  + result.osm_id.green);
+                callback(null,result);
                 if(self.run.region < (self.run.maxRegion-1)) {
                   self.resetRun();
                   getSync();
@@ -256,13 +284,13 @@ module.exports = function(params) {
         regions.updateOne({"id": id },query, function(err_update, res_update) {
           if(err_update) {
             console.log("!!! MongoDB: Update Error", err_update);
+            callback(err_update);
           } else {
             console.log("MongoDB: 👾  Update " + id + ' in ' + (Date.now()-_time)/1000 + 's' + os.EOL);
+            if(typeof callback === 'function') {
+              callback(null,res_update);
+            }
           }
-          if(typeof callback === 'function') {
-            callback(res_update);
-          }
-
           db.close();
         });
       }
@@ -337,9 +365,12 @@ module.exports = function(params) {
       }
       if(result){
         return result;
-
       }
     }
+    if(!name) {
+      return data.properties.name;
+    }
+
     return false;
   };
 

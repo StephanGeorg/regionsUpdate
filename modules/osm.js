@@ -10,8 +10,15 @@ module.exports = function(params){
   /*
    *  Parse result from geonames
    */
-  this.parse = function() {
-
+  this.parseResult = function(result) {
+    if(result.length) {
+      if(result.length > 1) {
+        return result[0];
+      } else {
+        return result[0];
+      }
+    }
+    return false;
   };
 
   /**
@@ -22,10 +29,14 @@ module.exports = function(params){
     if(typeof callback !== 'function') {
       throw('Callback must be a function');
     }
-    var endpoint = this.endpoint + '/' + type + 'JSON',
+    var endpoint = this.endpoint + type,
         query = params || {};
 
     //query.username = this.username;
+
+    console.log(endpoint);
+    console.log(query);
+
     request.get({url: endpoint, qs: query},function (error, response, body) {
       if(error){
         callback(error,null);

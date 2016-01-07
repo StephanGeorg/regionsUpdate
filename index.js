@@ -17,7 +17,7 @@ var params = {
     "osm": {$exists: true},
   },
   fields: {
-    limit: 1,
+    limit: 5,
   },
 };
 
