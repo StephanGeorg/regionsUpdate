@@ -9,7 +9,7 @@ module.exports = function(params){
   /*
    *  Parse result from geonames
    */
-  this.parseResult = function(result,detailed,callback) {
+  this.parseResult = function(result,detailed,mode,callback) {
     var res;
     if(result.totalResultsCount) {
       if(result.geonames.length > 1) {

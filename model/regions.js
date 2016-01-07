@@ -17,21 +17,23 @@ var url = "mongodb://nearest:1847895@candidate.53.mongolayer.com:10678,candidate
 module.exports = function(params) {
 
   this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],[],[],[]];
-  this.run = {
-    region: 0,
-    maxRegion: 0,
-    name: 0,
-    maxName: 0,
-    level: 0,
-    maxLevel: 0,
-    admin: 0,
-    fuzzy: 0,
-    notgeo: 0,
-    reset: 0,
-    run: 0,
-  };
-
   this.params = {};
+
+  this.initRun = function() {
+    this.run = {
+      region: 0,
+      maxRegion: 0,
+      name: 0,
+      maxName: 0,
+      level: 0,
+      maxLevel: 0,
+      admin: 0,
+      fuzzy: 0,
+      notgeo: 0,
+      reset: 0,
+      run: 0,
+    };
+  };
 
   this.getQueryOSM = function() {
     var region = this.params[this.run.region];
@@ -89,19 +91,21 @@ module.exports = function(params) {
       q.north = region.osm.bbox.coordinates[0][1][1];
     }
 
-    console.log("Geonames: Searching " + q[query.search].red + " w/ "  + q.fcode.yellow + " Mode: " +  query.search.blue + " Geo: "  + self.run.notgeo);
+    console.log("Geonames: Searching " + q[query.search].red + " w/ "  + q.fcode.yellow + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
     return q;
 
   };
 
   this.changeQuery = function(){
 
+    // Firts run
     if(this.run.run === 0) {
       this.run.run++;
       return this.run;
     }
 
     if(this.run.admin < (this.run.maxLevel-1)) {
+      // Run reseted by method
       if(!this.run.reset){
         ++this.run.admin;
       } else {
@@ -118,7 +122,6 @@ module.exports = function(params) {
           ++this.run.notgeo;
         } else {
           if(this.run.name < (this.run.maxName-1)) {
-            console.log("change name");
             ++this.run.name;
             this.run.notgeo = 0;
             this.run.fuzzy = 0;
@@ -161,6 +164,7 @@ module.exports = function(params) {
 
   this.sync = function(type,params,callback) {
 
+    this.initRun();
     this.params = params;
     this.run.maxRegion = this.params.length;
 
@@ -178,12 +182,12 @@ module.exports = function(params) {
         query = {},
         levels = this.levels[self.params.admin_level];
 
-    var getSync = function(){
-      var q = self.getQueryGeonames(),
+    var getSync = function(callback){
+      var query = self.getQueryGeonames(),
           result = {};
-      if(q) {
+      if(query) {
         // search geoname
-        gn.get('search',q,function(err_gnget,res_gnget){
+        gn.get('search',query,function(err_gnget,res_gnget){
           if(err_gnget) {
             callback(err_gnget);
           }
@@ -200,32 +204,30 @@ module.exports = function(params) {
                   self.run.reset = 1;
                   if(res_save) {
                     if(self.run.region < (self.run.maxRegion-1)) {
-                      getSync();
-                      return;
+                      getSync(callback);
+                    } else {
+                      callback();
                     }
                   } else {
-                    getSync();
-                    return;
+                    getSync(callback);
                   }
                 });
-                return;
               } else {
                 console.log("Geonames: geonameID not found ...".red);
-                getSync();
-                return;
+                getSync(callback);
               }
             });
-            return;
           } else {
             console.log("Geonames: Search not found ...".red);
-            getSync();
-            return;
+            getSync(callback);
           }
         });
+      } else {
+        callback();
       }
     };
 
-    getSync();
+    getSync(callback);
 
   };
 

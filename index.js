@@ -15,26 +15,12 @@ var params = {
   query: {
     "properties.admin_level": 6, //"geodata.geonames": {$exists: false},
     "osm": {$exists: true},
+    "geodata":{$exists: false}
   },
   fields: {
-    limit: 5,
+    limit: 2,
   },
 };
-
-
-
-region.get(params,function(err,res){
-  if(err){
-    console.log(err);
-  } else {
-    region.sync(getMode(args),res,function(err_sync,res_sync){
-      if(res_sync){
-
-      }
-    });
-  }
-});
-
 
 function getMode(args) {
   if(args.length){
@@ -43,3 +29,20 @@ function getMode(args) {
     return 'geonames';
   }
 }
+
+
+var check = function(params){
+  region.get(params,function(err,res){
+    if(err){
+      console.log(err);
+    } else {
+      region.sync(getMode(args),res,function(err_sync,res_sync){
+        console.log("Run ready!!!");
+        check(params);
+      });
+    }
+  });
+};
+
+
+check(params);
