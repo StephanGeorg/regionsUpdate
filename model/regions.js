@@ -33,7 +33,7 @@ module.exports = function(params) {
       reset: 0,
       run: 0,
       localrun: 0,
-      country: {},
+      country: null,
     };
   };
 
@@ -96,6 +96,8 @@ module.exports = function(params) {
       q.north = region.osm.bbox.coordinates[0][1][1];
     }
 
+    // add country
+
     console.log("Geonames: Searching " + self.params[self.run.region].id.toString().underline + " " + q[query.search].red + " w/ "  /*+ q.fcode.yellow */ + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
     return q;
 
@@ -103,7 +105,7 @@ module.exports = function(params) {
 
   this.changeQuery = function(){
 
-    // Firts run
+    // First run
     if(this.run.run === 0) {
       this.run.run++;
       return this.run;
@@ -140,13 +142,14 @@ module.exports = function(params) {
   };
 
   this.resetRun = function(){
-      console.log();
+      console.log("resetRun called!");
       this.run.region++;
       this.run.notgeo = 0;
       this.run.fuzzy = 0;
       this.run.name = 0;
       this.run.admin = 0;
       this.run.localrun = 0;
+      this.run.country = null;
   };
 
   this.parseResult = function(type, result, callback) {
@@ -160,6 +163,35 @@ module.exports = function(params) {
     }
 
     return false;
+
+  };
+
+  this.getCountry = function(callback){
+
+    var self = this,
+        region = self.params[self.run.region];
+
+    var params = {
+      query: {
+        id: parseInt(region.rpath[region.rpath.length-2])
+      },
+      fields: {
+        limit: 1
+      }
+    };
+
+    if(!self.run.country && region.properties.admin_level > 2 ) {
+
+      self.get(params,function(e,r){
+        if(r) {
+          self.run.country = r[0];
+          console.log("Country: " + self.run.country.id + " " + self.run.country.properties.name);
+          callback();
+        }
+      });
+    } else {
+      callback();
+    }
 
   };
 
@@ -183,67 +215,73 @@ module.exports = function(params) {
         query = {},
         levels = this.levels[self.params.admin_level];
 
+    var region = self.params[self.run.region];
+
     var getSync = function(callback){
-      var query = self.getQueryGeonames(),
-          result = {};
-      if(query) {
-        self.run.localrun++;
 
-        // search geoname
-        gn.get('search',query,function(err_gnget,res_gnget){
-          if(err_gnget) {
-            callback(err_gnget);
-          }
-          var res_search = gn.parseSearch(res_gnget,self.params[self.run.region],self.run);
-          if(res_search) {
+        var query = self.getQueryGeonames(),
+            result = {};
 
-            console.log("Geonames: Search found ...".green);
-            console.log("Geonames: Get geonameID ... ".green + res_search.geonameId);
+        if(query) {
+          // get country
+          self.getCountry(function(){
+            self.run.localrun++;
+              // search geoname
+              gn.get('search',query,function(err_gnget,res_gnget){
+                if(err_gnget) {
+                  callback(err_gnget);
+                }
+                var res_search = gn.parseSearch(res_gnget,region,self.run);
+                if(res_search) {
 
-            // parse result and get detailed data
-            self.parseResult('geonames',res_search,function(err_detail,res_detail){
-              if(res_detail) {
-                console.log("Geonames: geonameID found ...".green);
-                // save data to db
-                self.save(self.params[self.run.region].id,{geodata:res_detail},1,function(err_save,res_save){
-                  self.resetRun();
-                  self.run.reset = 1;
-                  if(res_save) {
-                    if(self.run.region < (self.run.maxRegion-1)) {
-                      getSync(callback);
+                  console.log("Geonames: Search found ...".green);
+                  console.log("Geonames: Get geonameID ... ".green + res_search.geonameId);
+
+                  // parse result and get detailed data
+                  self.parseResult('geonames',res_search,function(err_detail,res_detail){
+                    if(res_detail) {
+                      console.log("Geonames: geonameID found ...".green);
+                      // save data to db
+                      self.save(self.params[self.run.region].id,{geodata:res_detail},1,function(err_save,res_save){
+                        self.resetRun();
+                        self.run.reset = 1;
+                        if(res_save) {
+                          if(self.run.region < (self.run.maxRegion-1)) {
+                            getSync(callback);
+                          } else {
+                            callback();
+                          }
+                        } else {
+                          getSync(callback);
+                        }
+                      });
                     } else {
-                      callback();
+                      console.log("Geonames: geonameID not found ...".red);
+                      getSync(callback);
                     }
+                    return;
+                  });
+                } else {
+                  console.log("Geonames: ⛔ ");
+                  if(!(self.run.localrun % 4)) {
+                    self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
+                      //self.run.country = null;
+                      getSync(callback);
+                    });
                   } else {
                     getSync(callback);
                   }
-                });
-              } else {
-                console.log("Geonames: geonameID not found ...".red);
-                getSync(callback);
-              }
-              return;
-            });
-          } else {
-            console.log("Geonames: ⛔ ");
-            if(!(self.run.localrun % 4)) {
-              self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
-                getSync(callback);
+                }
               });
-            } else {
-              getSync(callback);
-            }
-          }
-        });
-        // EOS search geoname
-
-      } else {
-        console.log("Last!");
-        //self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
-          callback();
-        //});
-        return;
-      }
+              // EOS search geoname
+          });
+        } else {
+          console.log("Last!");
+          //self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
+            callback();
+          //});
+          return;
+        }
     };
 
     getSync(callback);
@@ -348,7 +386,7 @@ module.exports = function(params) {
         console.log("MongoDB: 📗  connection ready ...");
         regions = db.collection('regions');
 
-        if(params.fields.limit === 1) {
+        if(limit === 1) {
           regions.findOne(params.query,function(err_findone,res_findone){
             if(err_findone) {
               callback(err_findone);
@@ -364,7 +402,6 @@ module.exports = function(params) {
             } else {
               callback(null,res_find);
             }
-
             db.close();
           });
         }
@@ -381,7 +418,6 @@ module.exports = function(params) {
       }
     });
 
-    console.log(_.uniq(names));
     return _.uniq(names);
   };
 
