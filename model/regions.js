@@ -33,6 +33,7 @@ module.exports = function(params) {
       reset: 0,
       run: 0,
       localrun: 0,
+      country: {},
     };
   };
 
@@ -59,6 +60,11 @@ module.exports = function(params) {
 
     var region = self.params[self.run.region];
 
+    // if first run get the country
+    if(!this.run.run && region.properties.admin_level > 2) {
+
+    }
+
     if(typeof region.properties.localname === 'string') {
 
       if(self.cleanLocalname(region.properties.localname)) {
@@ -82,7 +88,7 @@ module.exports = function(params) {
     q[query.search] = region.properties.localname[self.run.name];
 
     // add fcode filter
-    q.fcode = self.levels[region.properties.admin_level][self.run.admin];
+    //q.fcode = self.levels[region.properties.admin_level][self.run.admin];
 
     // add geo filter
     if(!self.run.notgeo && region.osm && region.osm.bbox) {
@@ -92,7 +98,7 @@ module.exports = function(params) {
       q.north = region.osm.bbox.coordinates[0][1][1];
     }
 
-    console.log("Geonames: Searching " + self.params[self.run.region].id.toString().underline + " " + q[query.search].red + " w/ "  + q.fcode.yellow + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
+    console.log("Geonames: Searching " + self.params[self.run.region].id.toString().underline + " " + q[query.search].red + " w/ "  /*+ q.fcode.yellow */ + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
     return q;
 
   };
@@ -105,34 +111,29 @@ module.exports = function(params) {
       return this.run;
     }
 
-    if(this.run.admin < (this.run.maxLevel-1)) {
+    if(!this.run.notgeo){
       // Run reseted by method
       if(!this.run.reset){
-        ++this.run.admin;
+        ++this.run.notgeo;
       } else {
         this.run.reset = 0;
       }
     } else {
+      this.run.notgeo = 0;
       this.run.admin = 0;
-      if(!this.run.fuzzy){
+      if(!this.run.fuzzy) {
         ++this.run.fuzzy;
       } else {
-        this.run.fuzzy = 0;
-        this.run.admin = 0;
-        if(!this.run.notgeo) {
-          ++this.run.notgeo;
+        if(this.run.name < (this.run.maxName-1)) {
+          ++this.run.name;
+          this.run.notgeo = 0;
+          this.run.fuzzy = 0;
+          this.run.admin = 0;
         } else {
-          if(this.run.name < (this.run.maxName-1)) {
-            ++this.run.name;
-            this.run.notgeo = 0;
-            this.run.fuzzy = 0;
-            this.run.admin = 0;
+          if(this.run.region < (this.run.maxRegion-1)) {
+            this.resetRun();
           } else {
-            if(this.run.region < (this.run.maxRegion-1)) {
-              this.resetRun();
-            } else {
-              return false;
-            }
+            return false;
           }
         }
       }
@@ -189,6 +190,7 @@ module.exports = function(params) {
           result = {};
       if(query) {
         self.run.localrun++;
+
         // search geoname
         gn.get('search',query,function(err_gnget,res_gnget){
           if(err_gnget) {
@@ -196,6 +198,7 @@ module.exports = function(params) {
           }
           var res_search = gn.parseSearch(res_gnget,self.params[self.run.region],self.run);
           if(res_search) {
+
             console.log("Geonames: Search found ...".green);
             console.log("Geonames: Get geonameID ... ".green + res_search.geonameId);
 
@@ -225,7 +228,7 @@ module.exports = function(params) {
             });
           } else {
             console.log("Geonames: ⛔ ");
-            if(!(self.run.localrun % 12)) {
+            if(!(self.run.localrun % 4)) {
               self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
                 getSync(callback);
               });
@@ -234,6 +237,8 @@ module.exports = function(params) {
             }
           }
         });
+        // EOS search geoname
+
       } else {
         console.log("Last!");
         //self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){

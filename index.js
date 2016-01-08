@@ -21,6 +21,7 @@ var params = {
       "properties.admin_level": 6, //"geodata.geonames": {$exists: false},
       "osm": {$exists: true},
       "geodata":{$exists: false},
+      //"rpath": "4166852",
       $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
     },
     fields: {
