@@ -16,13 +16,13 @@ var i = 1;
 
 var params = {
   query: {
-    "properties.admin_level": 6, //"geodata.geonames": {$exists: false},
+    "properties.admin_level": 8, //"geodata.geonames": {$exists: false},
     "osm": {$exists: true},
     "geodata":{$exists: false},
     $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
   },
   fields: {
-    limit: 3,
+    limit: 2,
   },
 };
 

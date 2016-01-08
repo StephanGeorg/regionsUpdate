@@ -1,5 +1,6 @@
 var request = require('request'),
-    util = require('util');
+    util = require('util'),
+    turf = require('turf');
 
 module.exports = function(params){
 
@@ -10,12 +11,27 @@ module.exports = function(params){
   /*
    *  Parse result from geonames
    */
-  this.parseResult = function(result) {
+  this.parseResult = function(result,region) {
     if(result.length) {
       if(result.length > 1) {
         return result[0];
       } else {
-        return result[0];
+
+        var area = {
+          "type": "Feature",
+          "geometry": JSON.parse(result[0].way)
+        };
+
+        return {
+          id: region.id,
+          admin_level: region.properties.admin_level,
+          SRID: parseInt(region.properties.SRID),
+          rpath: region.rpath.map(returnInt),
+          center: JSON.parse(result[0].center),
+          bbox: JSON.parse(result[0].bbox),
+          area: turf.area(area),
+          timestamp: region.timestamp
+        };
       }
     }
     return false;
@@ -34,9 +50,6 @@ module.exports = function(params){
 
     //query.username = this.username;
 
-    console.log(endpoint);
-    console.log(query);
-
     request.get({url: endpoint, qs: query},function (error, response, body) {
       if(error){
         callback(error,null);
@@ -54,3 +67,7 @@ module.exports = function(params){
 
 
 };
+
+function returnInt(element){
+  return parseInt(element,10);
+}

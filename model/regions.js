@@ -41,7 +41,7 @@ module.exports = function(params) {
 
     return {
       id: region.id,
-      fields: 'osm_id,bbox,center'
+      fields: 'osm_id,bbox,center,way'
     };
 
   };
@@ -253,22 +253,26 @@ module.exports = function(params) {
         self = this;
 
     var getSync = function(){
-      var q = self.getQueryOSM(),
-          result = {};
-      if(q) {
-        osm.get('get',q,function(err_osm,res_osm){
+      var query = self.getQueryOSM(),
+          result = {},
+          region = self.params[self.run.region];
+      if(query) {
+        osm.get('get',query,function(err_osm,res_osm){
           if(err_osm) {
             callback(err_osm);
           } else {
-            result = osm.parseResult('osm',res_osm);
-
+            result = osm.parseResult(res_osm,region);
             if(result) {
-                console.log("OSM: ✅  osm_id: "  + result.osm_id.green);
-                callback(null,result);
+                // in callbak for save
+                console.log("OSM: ✅  osm_id: ",result);
+
                 if(self.run.region < (self.run.maxRegion-1)) {
                   self.resetRun();
                   getSync(callback);
+                } else {
+                  callback(null,result);
                 }
+                // in callback for save
             } else {
               console.log("OSM: not found ...");
               getSync(callback);
