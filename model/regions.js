@@ -222,6 +222,11 @@ module.exports = function(params) {
         var query = self.getQueryGeonames(),
             result = {};
 
+        // getQuery is already called. We need it to
+        // determine if the run can happen
+        // we need the country first, to manipulate
+        // the localnames ...
+
         if(query) {
           // get country
           self.getCountry(function(){
