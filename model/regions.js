@@ -52,18 +52,14 @@ module.exports = function(params) {
     var query = {},
         q = {},
         level,
-        self = this;
+        self = this,
+        search = [];
 
     if(!self.changeQuery()) {
       return false;
     }
 
     var region = self.params[self.run.region];
-
-    // if first run get the country
-    if(!this.run.run && region.properties.admin_level > 2) {
-
-    }
 
     if(typeof region.properties.localname === 'string') {
 
@@ -76,7 +72,9 @@ module.exports = function(params) {
       }
     }
 
-    self.run.maxName = region.properties.localname.length;
+    search = self.getSearchNames(region.properties.localname);
+
+    self.run.maxName = search.length;
     self.run.maxLevel = self.levels[region.properties.admin_level].length;
 
     // add search mode
@@ -85,7 +83,7 @@ module.exports = function(params) {
     } else {
       query.search = 'name_equals';
     }
-    q[query.search] = region.properties.localname[self.run.name];
+    q[query.search] = search[self.run.name];
 
     // add fcode filter
     //q.fcode = self.levels[region.properties.admin_level][self.run.admin];
@@ -372,6 +370,19 @@ module.exports = function(params) {
         }
       }
     });
+  };
+
+  this.getSearchNames = function(names){
+    var region = this.params[this.run.region];
+
+    _.each(region.properties.tags,function(name,key){
+      if(key.indexOf('name') === 0 || key.indexOf('official_name') === 0 || key.indexOf('long_name') === 0) {
+        names.push(name);
+      }
+    });
+
+    console.log(_.uniq(names));
+    return _.uniq(names);
   };
 
   this.cleanLocalname = function(data) {
