@@ -263,19 +263,26 @@ module.exports = function(params) {
           } else {
             result = osm.parseResult(res_osm,region);
             if(result) {
-                // in callbak for save
-                console.log("OSM: ✅  osm_id: ",result);
-
+              console.log("OSM: ✅  osm_id: ",result.id);
+              // in callbak for save
+              self.save(result.id,{osm:result},1,function(){
                 if(self.run.region < (self.run.maxRegion-1)) {
                   self.resetRun();
                   getSync(callback);
                 } else {
                   callback(null,result);
                 }
-                // in callback for save
+              });
+              // in callback for save
             } else {
               console.log("OSM: not found ...");
-              getSync(callback);
+              self.save(region.id,{osm:{found:false}},1,function(){
+                if(self.run.region < (self.run.maxRegion-1)) {
+                  self.resetRun();
+                }
+                getSync(callback);
+              });
+
             }
           }
         });
@@ -327,14 +334,15 @@ module.exports = function(params) {
    *  Get data from db
    */
   this.get = function(params,callback){
-    var limit = params.limit;
+
+    var limit = params.fields.limit;
 
     MongoClient.connect(url, function(err, db) {
       assert.equal(null, err);
       if(err){
         console.log(err);
       } else {
-        console.log("Connected correctly to server.");
+        console.log("MongoDB: 📗  connection ready ...");
         regions = db.collection('regions');
 
         if(params.fields.limit === 1) {
@@ -353,6 +361,7 @@ module.exports = function(params) {
             } else {
               callback(null,res_find);
             }
+
             db.close();
           });
         }

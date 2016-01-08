@@ -15,16 +15,33 @@ var args = process.argv.slice(2);
 var i = 1;
 
 var params = {
-  query: {
-    "properties.admin_level": 8, //"geodata.geonames": {$exists: false},
-    "osm": {$exists: true},
-    "geodata":{$exists: false},
-    $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
+
+  geonames: {
+    query: {
+      "properties.admin_level": 6, //"geodata.geonames": {$exists: false},
+      "osm": {$exists: true},
+      "geodata":{$exists: false},
+      $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
+    },
+    fields: {
+      limit: 2,
+    },
   },
-  fields: {
-    limit: 2,
-  },
+
+  osm: {
+    query: {
+      "properties.admin_level": 8, //"geodata.geonames": {$exists: false},
+      "osm": {$exists: false},
+      $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
+    },
+    fields: {
+      limit: 10,
+    },
+  }
+
 };
+
+var query = params[getMode(args)];
 
 function getMode(args) {
   if(args.length){
@@ -34,15 +51,16 @@ function getMode(args) {
   }
 }
 
+console.log(params[getMode(args)]);
 
 var check = function(params){
   var _time = Date.now();
-  region.get(params,function(err,res){
+  region.get(query,function(err,res){
     if(err){
       console.log(err);
     } else {
       region.sync(getMode(args),res,function(err_sync,res_sync){
-        check(params);
+        check(query);
         console.log("Step " + i++ + " ready in " + (Date.now()-_time)/1000 + 's' + os.EOL );
       });
     }
@@ -51,4 +69,4 @@ var check = function(params){
 };
 
 
-check(params);
+check(query);
