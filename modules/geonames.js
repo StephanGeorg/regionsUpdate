@@ -9,6 +9,9 @@ module.exports = function(params){
   this.username = params.username  || null;
   this.endpoint = 'https://secure.geonames.net/';
 
+  this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4'],[],[]];
+
+
   /*
    *  Parse result from geonames
    */
@@ -80,20 +83,36 @@ module.exports = function(params){
    *  Verify the search result
    */
   this.parseSearch = function(result,region,mode,callback){
-    var res;
+    var results =[],
+        res,
+        levels = this.levels[region.properties.admin_level];
+
     if(result.totalResultsCount) {
 
-      if(result.geonames.length > 1) {
-        // to do: edit multiple
-        console.log("Geonames: 🖖  Multiple results found!");
-        res = result.geonames[0];
-      } else {
-        res = result.geonames[0];
+      // search for specific fcode
+      _.each(levels,function(level){
+        _.each(result.geonames,function(geoname){
+          if(level === geoname.fcode) {
+            results.push(geoname);
+          }
+        });
+      });
+
+      // no results with specific fcode found!
+      if(!results.length) {
+        return;
       }
 
-      // distance
-      if(mode.notgeo) {
-        res = this.getNearest(result,region);
+      if(results.length > 1) {
+        console.log("Geonames: 🖖  Multiple results found!");
+      }
+
+      // maybe we can optimze this, but when does this happen ?
+      if(!mode.notgeo){
+        res = results[0];
+      } else {
+
+        res = this.getNearest(results,region);
         if(res) {
           console.log("Geonames: Found geonameID ".green + res.geonameId + " based on distance!".cyan);
         } else {
@@ -125,9 +144,9 @@ module.exports = function(params){
     };
     var distance = turf.distance(p1,p2);
 
-    console.log("Geonames: check distances: " + min + " 10% of bbox: " + ((distance/2)+(distance*0.1)));
+    console.log("Geonames: check distances: " + min + " 50% of bbox: " + ((distance/2)+(distance*0.5)));
 
-    if(min < ((distance/2)+(distance*0.1))) {
+    if(min < ((distance/2)+(distance*0.5))) {
       return true;
     }
     return;
@@ -140,7 +159,7 @@ module.exports = function(params){
   this.getNearest = function(result,region){
     var dists = [],
         reg = [];
-    _.each(result.geonames,function(sr){
+    _.each(result,function(sr){
       var point1 = {
         "type": "Feature",
         "geometry": {
