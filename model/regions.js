@@ -16,7 +16,7 @@ var url = "mongodb://nearest:1847895@candidate.53.mongolayer.com:10678,candidate
 
 module.exports = function(params) {
 
-  this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],[],[],[]];
+  this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4'],[],[]];
   this.params = {};
 
   this.initRun = function() {
@@ -32,6 +32,7 @@ module.exports = function(params) {
       notgeo: 0,
       reset: 0,
       run: 0,
+      localrun: 0,
     };
   };
 
@@ -91,7 +92,7 @@ module.exports = function(params) {
       q.north = region.osm.bbox.coordinates[0][1][1];
     }
 
-    console.log("Geonames: Searching " + q[query.search].red + " w/ "  + q.fcode.yellow + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
+    console.log("Geonames: Searching " + self.params[self.run.region].id.toString().underline + " " + q[query.search].red + " w/ "  + q.fcode.yellow + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
     return q;
 
   };
@@ -146,12 +147,13 @@ module.exports = function(params) {
       this.run.fuzzy = 0;
       this.run.name = 0;
       this.run.admin = 0;
+      this.run.localrun = 0;
   };
 
   this.parseResult = function(type, result, callback) {
 
     switch(type) {
-      case 'geonames': gn.parseResult(result,true,function(err,res){
+      case 'geonames': gn.parseResult(result,true,this.run,function(err,res){
                           callback(err,res);
                        }); break;
       case 'osm':      return osm.parseResult(result);
@@ -186,16 +188,19 @@ module.exports = function(params) {
       var query = self.getQueryGeonames(),
           result = {};
       if(query) {
+        self.run.localrun++;
         // search geoname
         gn.get('search',query,function(err_gnget,res_gnget){
           if(err_gnget) {
             callback(err_gnget);
           }
-          if(res_gnget.totalResultsCount) {
+          var res_search = gn.parseSearch(res_gnget,self.params[self.run.region],self.run);
+          if(res_search) {
             console.log("Geonames: Search found ...".green);
-            console.log("Geonames: Get geonameID ...".green);
+            console.log("Geonames: Get geonameID ... ".green + res_search.geonameId);
+
             // parse result and get detailed data
-            self.parseResult('geonames',res_gnget,function(err_detail,res_detail){
+            self.parseResult('geonames',res_search,function(err_detail,res_detail){
               if(res_detail) {
                 console.log("Geonames: geonameID found ...".green);
                 // save data to db
@@ -216,14 +221,25 @@ module.exports = function(params) {
                 console.log("Geonames: geonameID not found ...".red);
                 getSync(callback);
               }
+              return;
             });
           } else {
-            console.log("Geonames: Search not found ...".red);
-            getSync(callback);
+            console.log("Geonames: ⛔ ");
+            if(!(self.run.localrun % 12)) {
+              self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
+                getSync(callback);
+              });
+            } else {
+              getSync(callback);
+            }
           }
         });
       } else {
-        callback();
+        console.log("Last!");
+        //self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
+          callback();
+        //});
+        return;
       }
     };
 
@@ -244,24 +260,26 @@ module.exports = function(params) {
           if(err_osm) {
             callback(err_osm);
           } else {
-            result = self.parseResult('osm',res_osm);
+            result = osm.parseResult('osm',res_osm);
+
             if(result) {
                 console.log("OSM: ✅  osm_id: "  + result.osm_id.green);
                 callback(null,result);
                 if(self.run.region < (self.run.maxRegion-1)) {
                   self.resetRun();
-                  getSync();
+                  getSync(callback);
                 }
             } else {
               console.log("OSM: not found ...");
-              getSync();
+              getSync(callback);
             }
           }
         });
       }
+      return;
     };
 
-    getSync();
+    getSync(callback);
 
   };
 
@@ -294,6 +312,7 @@ module.exports = function(params) {
             }
           }
           db.close();
+
         });
       }
       return;
@@ -305,6 +324,7 @@ module.exports = function(params) {
    */
   this.get = function(params,callback){
     var limit = params.limit;
+
     MongoClient.connect(url, function(err, db) {
       assert.equal(null, err);
       if(err){
