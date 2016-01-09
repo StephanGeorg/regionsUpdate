@@ -34,6 +34,7 @@ module.exports = function(params) {
       run: 0,
       localrun: 0,
       country: null,
+      firstRunRegion: 0,
     };
   };
 
@@ -73,6 +74,7 @@ module.exports = function(params) {
     }
 
     search = self.getSearchNames(region.properties.localname);
+    search = self.rmAdmin(search);
 
     self.run.maxName = search.length;
     self.run.maxLevel = self.levels[region.properties.admin_level].length;
@@ -97,8 +99,7 @@ module.exports = function(params) {
     }
 
     // add country
-
-    console.log("Geonames: Searching " + self.params[self.run.region].id.toString().underline + " " + q[query.search].red + " w/ "  /*+ q.fcode.yellow */ + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
+    console.log("Geonames: Searching id: " + self.params[self.run.region].id.toString().underline + " " + q[query.search].red + " w/ "  /*+ q.fcode.yellow */ + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
     return q;
 
   };
@@ -141,15 +142,63 @@ module.exports = function(params) {
     return this.run;
   };
 
+  this.checkNext = function(){
+
+    var testRun = _.clone(this.run);
+
+    delete testRun.country;
+
+    // First run
+    if(testRun.run === 0) {
+      testRun.run++;
+      return testRun;
+    }
+
+    if(!testRun.notgeo){
+      // Run reseted by method
+      if(!testRun.reset){
+        ++testRun.notgeo;
+      } else {
+        testRun.reset = 0;
+      }
+    } else {
+      testRun.notgeo = 0;
+      testRun.admin = 0;
+      if(!testRun.fuzzy) {
+        ++testRun.fuzzy;
+      } else {
+        if(testRun.name < (testRun.maxName-1)) {
+          ++testRun.name;
+          testRun.notgeo = 0;
+          testRun.fuzzy = 0;
+          testRun.admin = 0;
+        } else {
+          if(testRun.region < (testRun.maxRegion-1)) {
+            testRun.region++;
+            testRun.notgeo = 0;
+            testRun.fuzzy = 0;
+            testRun.name = 0;
+            testRun.admin = 0;
+            testRun.localrun = 0;
+            testRun.country = null;
+          } else {
+            return false;
+          }
+        }
+      }
+    }
+    return testRun;
+  };
+
   this.resetRun = function(){
-      console.log("resetRun called!");
+      console.log();
       this.run.region++;
       this.run.notgeo = 0;
       this.run.fuzzy = 0;
       this.run.name = 0;
       this.run.admin = 0;
       this.run.localrun = 0;
-      this.run.country = null;
+      //this.run.country = null;
   };
 
   this.parseResult = function(type, result, callback) {
@@ -180,15 +229,20 @@ module.exports = function(params) {
       }
     };
 
-    if(!self.run.country && region.properties.admin_level > 2 ) {
+    if(region.properties.admin_level > 2 ) {
 
-      self.get(params,function(e,r){
-        if(r) {
-          self.run.country = r[0];
-          console.log("Country: " + self.run.country.id + " " + self.run.country.properties.name);
-          callback();
-        }
-      });
+
+      if(self.run.firstRunRegion === 1 || (self.checkNext() && self.checkNext().region !== self.run.region)) {
+        self.get(params,function(e,r){
+          if(r) {
+            self.run.country = r[0];
+            console.log("Country: id: " + self.run.country.id + " " + self.run.country.properties.name);
+            callback();
+          }
+        });
+      } else {
+        callback();
+      }
     } else {
       callback();
     }
@@ -209,6 +263,21 @@ module.exports = function(params) {
 
   };
 
+  this.checkFirstRunRegion = function() {
+
+    var self = this;
+
+    if(self.run.region === 0) {
+      self.run.firstRunRegion++;
+    }
+
+    if(self.run.region) {
+      self.run.firstRunRegion = 0;
+    }
+
+
+  };
+
   this.syncGeoname = function(callback){
 
     var self = this,
@@ -219,18 +288,15 @@ module.exports = function(params) {
 
     var getSync = function(callback){
 
+      self.checkFirstRunRegion();
+
+      // get country
+      self.getCountry(function(){
+
         var query = self.getQueryGeonames(),
             result = {};
 
-        // getQuery is already called. We need it to
-        // determine if the run can happen
-        // we need the country first, to manipulate
-        // the localnames ...
-
         if(query) {
-          // get country
-          self.getCountry(function(){
-            self.run.localrun++;
               // search geoname
               gn.get('search',query,function(err_gnget,res_gnget){
                 if(err_gnget) {
@@ -268,7 +334,7 @@ module.exports = function(params) {
                   });
                 } else {
                   console.log("Geonames: ⛔ ");
-                  if(!(self.run.localrun % 4)) {
+                  if(self.checkNext().region !== self.run.region) {
                     self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
                       //self.run.country = null;
                       getSync(callback);
@@ -279,7 +345,7 @@ module.exports = function(params) {
                 }
               });
               // EOS search geoname
-          });
+
         } else {
           console.log("Last!");
           //self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
@@ -287,6 +353,7 @@ module.exports = function(params) {
           //});
           return;
         }
+      }); // EOS get country
     };
 
     getSync(callback);
@@ -424,6 +491,46 @@ module.exports = function(params) {
     });
 
     return _.uniq(names);
+  };
+
+  this.getHierarchy = function() {
+
+    var region = this.params[this.run.region],
+        hierarchies = {},
+        rule= [];
+
+    if(this.run.country && this.run.country.geodata && this.run.country.geodata.hierarchy) {
+      hierarchies = this.run.country.geodata.hierarchy;
+      _.each(hierarchies,function(hierarchy,key){
+        if(key.indexOf('admin'+region.properties.admin_level) !== -1) {
+          rule.push(hierarchy);
+        }
+      });
+    }
+
+    return rule;
+
+  };
+
+  this.rmAdmin = function(names) {
+
+    var region = this.params[this.run.region],
+        rules = this.getHierarchy();
+
+    if(rules.length){
+      _.each(rules[0],function(rule){
+        if(rule.name) {
+          _.each(names,function(name){
+            if(name.indexOf(rule.name) !== -1) {
+              names.push(name.replace(rule.name,"").trim());
+            }
+          });
+        }
+      });
+    }
+
+    return _.uniq(names);
+
   };
 
   this.cleanLocalname = function(data) {

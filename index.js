@@ -20,12 +20,14 @@ var params = {
     query: {
       "properties.admin_level": 6, //"geodata.geonames": {$exists: false},
       "osm": {$exists: true},
-      "geodata":{$exists: false},
-      //"rpath": "4166852",
-      $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
+      "rpath": "192756",
+      $and: [
+        {$or: [{"lastModified": {$lt: moment().subtract(0.01,'hours').toDate() }},{"lastModified": {$exists: false},}],},
+        {$or: [{"geodata":{$exists: false}},{"geodata.geonames.found": false}],}
+      ],
     },
     fields: {
-      limit: 2,
+      limit: 5,
     },
   },
 
@@ -52,7 +54,6 @@ function getMode(args) {
   }
 }
 
-console.log(params[getMode(args)]);
 
 var check = function(params){
   var _time = Date.now();
