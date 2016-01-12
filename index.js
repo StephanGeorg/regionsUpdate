@@ -20,10 +20,12 @@ var params = {
     query: {
       "properties.admin_level": 6, //"geodata.geonames": {$exists: false},
       "osm": {$exists: true},
-      "rpath": "192756",
+      //id:4276613,
+      //"rpath": "2528142",
+      "rpath": {$nin: ["215477","215663","60189","60199","58974"/*,"214665"*/]},
       $and: [
-        {$or: [{"lastModified": {$lt: moment().subtract(0.01,'hours').toDate() }},{"lastModified": {$exists: false},}],},
-        {$or: [{"geodata":{$exists: false}},{"geodata.geonames.found": false}],}
+        {$or: [{"lastModified": {$lt: moment().subtract(4,'hours').toDate() }},{"lastModified": {$exists: false},}],},
+        {$or: [{"geodata.geonames.found":false}/*,{"geodata":{$exists:false}}*/],}
       ],
     },
     fields: {
@@ -34,8 +36,10 @@ var params = {
   osm: {
     query: {
       "properties.admin_level": 8, //"geodata.geonames": {$exists: false},
-      "osm": {$exists: false},
-      $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
+      //"osm": {$exists: false},
+      //"osm.area": { "$exists": false },
+      "osm.bbox.type": { "$exists": false },
+      $or: [{"lastModified": {$lt: moment().subtract(0.01,'hours').toDate() }},{"lastModified": {$exists: false},}],
     },
     fields: {
       limit: 10,
@@ -60,7 +64,11 @@ var check = function(params){
   region.get(query,function(err,res){
     if(err){
       console.log(err);
-    } else {
+    }
+
+    console.log(res.length);
+
+    if(res.length) {
       region.sync(getMode(args),res,function(err_sync,res_sync){
         check(query);
         console.log("Step " + i++ + " ready in " + (Date.now()-_time)/1000 + 's' + os.EOL );
