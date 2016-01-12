@@ -16,7 +16,6 @@ var url = "mongodb://nearest:1847895@candidate.53.mongolayer.com:10678,candidate
 
 module.exports = function(params) {
 
-  this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4'],[],[]];
   this.params = {};
 
   this.initRun = function() {
@@ -26,6 +25,7 @@ module.exports = function(params) {
       name: 0,
       maxName: 0,
       level: 0,
+      levels: 0,
       maxLevel: 0,
       admin: 0,
       fuzzy: 0,
@@ -52,7 +52,6 @@ module.exports = function(params) {
 
     var query = {},
         q = {},
-        level,
         self = this,
         search = [];
 
@@ -73,11 +72,15 @@ module.exports = function(params) {
       }
     }
 
+    // Add searches
     search = self.getSearchNames(region.properties.localname);
     search = self.rmAdmin(search);
-
+    search = _.uniq(search);
     self.run.maxName = search.length;
-    self.run.maxLevel = self.levels[region.properties.admin_level].length;
+
+    // Add admin level
+    self.getLocalAdminLevel();
+    self.run.maxLevel = self.run.levels.length;
 
     // add search mode
     if(self.run.fuzzy) {
@@ -86,9 +89,6 @@ module.exports = function(params) {
       query.search = 'name_equals';
     }
     q[query.search] = search[self.run.name];
-
-    // add fcode filter
-    //q.fcode = self.levels[region.properties.admin_level][self.run.admin];
 
     // add geo filter
     if(!self.run.notgeo && region.osm && region.osm.bbox) {
@@ -218,25 +218,30 @@ module.exports = function(params) {
   this.getCountry = function(callback){
 
     var self = this,
-        region = self.params[self.run.region];
+        region;
 
-    var params = {
-      query: {
-        id: parseInt(region.rpath[region.rpath.length-2])
-      },
-      fields: {
-        limit: 1
+    if(self.run.firstRunRegion === 1){
+      region = self.params[self.run.region];
+    } else {
+      if(self.checkNext()){
+        region = self.params[self.checkNext().region];
       }
-    };
+    }
 
-    if(region.properties.admin_level > 2 ) {
-
-
-      if(self.run.firstRunRegion === 1 || (self.checkNext() && self.checkNext().region !== self.run.region)) {
+    if(self.run.firstRunRegion === 1 || (self.checkNext() && (self.checkNext().region !== self.run.region))) {
+      if(region.properties.admin_level > 2 ) {
+        var params = {
+          query: {
+            id: parseInt(region.rpath[region.rpath.length-2])
+          },
+          fields: {
+            limit: 1
+          }
+        };
         self.get(params,function(e,r){
           if(r) {
             self.run.country = r[0];
-            console.log("Country: id: " + self.run.country.id + " " + self.run.country.properties.name);
+            console.log("Country: id: " + self.run.country.id + " " + self.run.country.properties.name.yellow);
             callback();
           }
         });
@@ -246,7 +251,6 @@ module.exports = function(params) {
     } else {
       callback();
     }
-
   };
 
   this.sync = function(type,params,callback) {
@@ -281,8 +285,7 @@ module.exports = function(params) {
   this.syncGeoname = function(callback){
 
     var self = this,
-        query = {},
-        levels = this.levels[self.params.admin_level];
+        query = {};
 
     var region = self.params[self.run.region];
 
@@ -336,11 +339,15 @@ module.exports = function(params) {
                   console.log("Geonames: ⛔ ");
                   if(self.checkNext().region !== self.run.region) {
                     self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
-                      //self.run.country = null;
+                      self.run.country = null;
                       getSync(callback);
                     });
                   } else {
-                    getSync(callback);
+                    var delay = Math.floor(((Math.random() * 15000) + 1));
+                    console.log("Geonames: waiting for " + delay/1000 + "s ...");
+                    setTimeout(function () {
+                      getSync(callback);
+                    }, delay);
                   }
                 }
               });
@@ -374,8 +381,11 @@ module.exports = function(params) {
           if(err_osm) {
             callback(err_osm);
           } else {
+
             result = osm.parseResult(res_osm,region);
+
             if(result) {
+
               console.log("OSM: ✅  osm_id: ",result.id);
               // in callbak for save
               self.save(result.id,{osm:result},1,function(){
@@ -485,12 +495,33 @@ module.exports = function(params) {
     var region = this.params[this.run.region];
 
     _.each(region.properties.tags,function(name,key){
-      if(key.indexOf('name') === 0 || key.indexOf('official_name') === 0 || key.indexOf('long_name') === 0) {
-        names.push(name);
+      if(key === 'int_name' || key.indexOf('name:') === 0 || key.indexOf('official_name') === 0 || key.indexOf('long_name') === 0) {
+        if(key === 'int_name') {
+          names.unshift(name.trim());
+        } else if(key.indexOf('name:ru') === -1 && key.indexOf('name:kk') === -1) {
+          names.push(name.trim());
+        }
       }
     });
 
     return _.uniq(names);
+  };
+
+  this.getLocalAdminLevel = function(){
+    var region = this.params[this.run.region],
+        rules = this.getHierarchy(),
+        levels = [];
+
+    _.each(rules[0],function(rule){
+      if(rule.fcode) {
+        levels.push(rule.fcode);
+      }
+    });
+    if(levels.length) {
+      levels = levels[0];
+    }
+    levels = gn.getAdminLevel(region,levels);
+    region.levels = levels;
   };
 
   this.getHierarchy = function() {
@@ -508,21 +539,35 @@ module.exports = function(params) {
       });
     }
 
-    return rule;
+    if(!rule.length) {
+      rule.push([]);
+    }
+
+    // add standard rules
+    rule[0].push({name:'Subdistrict'},{name:'District'},{name:'Region'},{name:'Municipality'},{name:'County'},{name:'Chiefdom'});
+    return _.uniq(rule);
 
   };
 
   this.rmAdmin = function(names) {
 
     var region = this.params[this.run.region],
-        rules = this.getHierarchy();
+        rules = this.getHierarchy()[0];
 
     if(rules.length){
-      _.each(rules[0],function(rule){
+      _.each(rules,function(rule){
         if(rule.name) {
           _.each(names,function(name){
+
             if(name.indexOf(rule.name) !== -1) {
               names.push(name.replace(rule.name,"").trim());
+            }
+            // check also lower/uppercase
+            if(name.toLowerCase().indexOf(rule.name.toLowerCase()) !== -1) {
+              names.push(name.replace(rule.name.toLowerCase(),"").trim());
+            }
+            if(name.toUpperCase().indexOf(rule.name.toUpperCase()) !== -1) {
+              names.push(name.replace(ucfirst(rule.name),"").trim());
             }
           });
         }
@@ -536,28 +581,32 @@ module.exports = function(params) {
   this.cleanLocalname = function(data) {
     var splits = [' / ',' - '];
     var re = /\(([^)]+)\)/;
+    var region = this.params[this.run.region];
     var result = '',
         name = data,
         x = 0,
         cleaned;
+
     if(typeof name === 'string') {
       _.each(splits,function(s){
         if(name.split(s).length > 1) {
           result = name.split(s);
         }
       });
+
       cleaned = name.match(re);
       if(cleaned) {
-        _.each(data.tags,function(v,k){
+        _.each(region.tags,function(v,k){
           if(k.indexOf('name:') === 0){
-            if(v === data.properties.localname) {
+
+            if(v === region.properties.localname) {
               x = 1;
             }
           }
         });
         if(!x) {
           result = [
-            data.properties.localname.replace(cleaned[0],'').trim(),
+            region.properties.localname.replace(cleaned[0],'').trim(),
             cleaned[1]
           ];
         }
@@ -567,7 +616,7 @@ module.exports = function(params) {
       }
     }
     if(!name) {
-      return data.properties.name;
+      return region.properties.name;
     }
 
     return false;
@@ -575,3 +624,14 @@ module.exports = function(params) {
 
 
 };
+
+
+
+// Helper
+
+function ucfirst(str) {
+  str += '';
+  var f = str.charAt(0)
+    .toUpperCase();
+  return f + str.substr(1);
+}

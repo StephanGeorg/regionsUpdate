@@ -1,16 +1,28 @@
 var request = require('request'),
+    http = require('http'),
+    https = require('https'),
     util = require('util'),
     turf = require('turf'),
     _ = require('underscore'),
+    querystring = require('querystring'),
+    urlencode = require('urlencode'),
     colors = require('colors');
 
 module.exports = function(params){
 
   this.username = params.username  || null;
-  this.endpoint = 'https://secure.geonames.net/';
+  this.url = 'ws.geonames.net';
 
   this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4'],[],[]];
 
+
+  /*
+   *
+   */
+  this.getAdminLevel = function(region,levels){
+    var lev = this.levels[region.properties.admin_level];
+    return lev.concat(levels);
+  };
 
   /*
    *  Parse result from geonames
@@ -85,7 +97,7 @@ module.exports = function(params){
   this.parseSearch = function(result,region,mode,callback){
     var results =[],
         res,
-        levels = this.levels[region.properties.admin_level];
+        levels = region.levels;
 
     if(result.totalResultsCount) {
 
@@ -205,11 +217,50 @@ module.exports = function(params){
     if(typeof callback !== 'function') {
       throw('Callback must be a function');
     }
-    var endpoint = this.endpoint + type + 'JSON',
+    var endpoint = type + 'JSON',
         query = params || {};
 
     query.username = this.username;
-    request.get({url: endpoint, qs: query},function (error, response, body) {
+
+    var agent = new http.Agent(
+      {maxSockets: 1000}
+    );
+    http.globalAgent.maxSockets = 1000;
+
+    var options = {
+      host: this.url,
+      path: '/' + endpoint + '?' + querystring.stringify(query),
+      method: 'GET',
+      agent: agent,
+      /*headers : {
+        Connection: 'keep-alive'
+      }*/
+    };
+
+    var req = http.request(options, function(res) {
+      var str = '';
+      console.log(req);
+      res.setEncoding('utf8');
+      res.on('data', function (chunk) {
+        //console.log('BODY: ' + JSON.parse(chunk));
+        //callback(null,JSON.parse(chunk));
+        //console.log('data');
+        str += chunk;
+      });
+      res.on('end', function () {
+        callback(null,JSON.parse(str));
+      });
+      req.on('error', function(e) {
+        callback(e);
+      });
+    });
+
+
+
+    req.end();
+
+
+    /*request.get({url: endpoint, qs: query},function (error, response, body) {
       if(error){
         callback(error,null);
       }
@@ -219,7 +270,7 @@ module.exports = function(params){
       if(body){
         callback(null,JSON.parse(body));
       }
-    });
+    });*/
   };
 
 };

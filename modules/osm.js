@@ -1,5 +1,6 @@
 var request = require('request'),
     util = require('util'),
+    _ = require('underscore'),
     turf = require('turf');
 
 module.exports = function(params){
@@ -12,27 +13,31 @@ module.exports = function(params){
    *  Parse result from geonames
    */
   this.parseResult = function(result,region) {
+
     if(result.length) {
-      if(result.length > 1) {
-        return result[0];
-      } else {
+      var polygons = {
+        "type": "FeatureCollection",
+        "features": []
+      };
 
-        var area = {
+      //return result[0];
+      _.each(result,function(res){
+        polygons.features.push({
           "type": "Feature",
-          "geometry": JSON.parse(result[0].way)
-        };
+          "geometry": JSON.parse(res.way)
+        });
+      });
 
-        return {
-          id: region.id,
-          admin_level: region.properties.admin_level,
-          SRID: parseInt(region.properties.SRID),
-          rpath: region.rpath.map(returnInt),
-          center: JSON.parse(result[0].center),
-          bbox: JSON.parse(result[0].bbox),
-          area: turf.area(area),
-          timestamp: region.timestamp
-        };
-      }
+      return {
+        id: region.id,
+        admin_level: region.properties.admin_level,
+        SRID: parseInt(region.properties.SRID),
+        rpath: region.rpath.map(returnInt),
+        center: turf.center(polygons).geometry,
+        bbox: turf.bboxPolygon(turf.extent(polygons)).geometry,
+        area: turf.area(polygons),
+        timestamp: region.timestamp
+      };
     }
     return false;
   };
