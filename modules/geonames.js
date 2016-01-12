@@ -239,7 +239,7 @@ module.exports = function(params){
 
     var req = http.request(options, function(res) {
       var str = '';
-      console.log(req);
+      //console.log(req);
       res.setEncoding('utf8');
       res.on('data', function (chunk) {
         //console.log('BODY: ' + JSON.parse(chunk));

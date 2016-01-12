@@ -343,7 +343,7 @@ module.exports = function(params) {
                       getSync(callback);
                     });
                   } else {
-                    var delay = Math.floor(((Math.random() * 15000) + 1));
+                    var delay = Math.floor(((Math.random() * 2000) + 1));
                     console.log("Geonames: waiting for " + delay/1000 + "s ...");
                     setTimeout(function () {
                       getSync(callback);
