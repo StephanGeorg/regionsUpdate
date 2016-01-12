@@ -22,10 +22,10 @@ var params = {
       "osm": {$exists: true},
       //id:4276613,
       //"rpath": "2528142",
-      "rpath": {$nin: ["215477","215663","60189","60199","58974"/*,"214665"*/]},
+      //"rpath": {$nin: ["215477","215663","60189","60199","58974"/*,"214665"*/]},
       $and: [
         {$or: [{"lastModified": {$lt: moment().subtract(4,'hours').toDate() }},{"lastModified": {$exists: false},}],},
-        {$or: [{"geodata.geonames.found":false}/*,{"geodata":{$exists:false}}*/],}
+        {$or: [/*{"geodata.geonames.found":false},*/{"geodata":{$exists:false}}],}
       ],
     },
     fields: {
@@ -39,7 +39,7 @@ var params = {
       //"osm": {$exists: false},
       //"osm.area": { "$exists": false },
       "osm.bbox.type": { "$exists": false },
-      $or: [{"lastModified": {$lt: moment().subtract(0.01,'hours').toDate() }},{"lastModified": {$exists: false},}],
+      $or: [{"lastModified": {$lt: moment().subtract(12,'hours').toDate() }},{"lastModified": {$exists: false},}],
     },
     fields: {
       limit: 10,
@@ -66,7 +66,7 @@ var check = function(params){
       console.log(err);
     }
 
-    console.log(res.length);
+    console.log("Getting the next " + res.length + " documents");
 
     if(res.length) {
       region.sync(getMode(args),res,function(err_sync,res_sync){

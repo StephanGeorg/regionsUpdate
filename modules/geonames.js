@@ -1,6 +1,7 @@
 var request = require('request'),
     http = require('http'),
     https = require('https'),
+    Agent = require('agentkeepalive'),
     util = require('util'),
     turf = require('turf'),
     _ = require('underscore'),
@@ -11,7 +12,7 @@ var request = require('request'),
 module.exports = function(params){
 
   this.username = params.username  || null;
-  this.url = 'ws.geonames.net';
+  this.url = ['ws.geonames.net','secure.geonames.net'];
 
   this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4'],[],[]];
 
@@ -217,37 +218,36 @@ module.exports = function(params){
     if(typeof callback !== 'function') {
       throw('Callback must be a function');
     }
+
     var endpoint = type + 'JSON',
-        query = params || {};
+        query = params || {},
+        r = {};
 
     query.username = this.username;
 
-    var agent = new http.Agent(
-      {maxSockets: 1000}
-    );
-    http.globalAgent.maxSockets = 1000;
+    var x = Math.floor(Math.random()*2);
+
+    if(x) {
+      r = https;
+    } else {
+      r = http;
+    }
 
     var options = {
-      host: this.url,
+      host: this.url[x],
       path: '/' + endpoint + '?' + querystring.stringify(query),
       method: 'GET',
-      agent: agent,
-      /*headers : {
-        Connection: 'keep-alive'
-      }*/
     };
 
-    var req = http.request(options, function(res) {
+    var req = r.request(options, function(res) {
       var str = '';
-      //console.log(req);
       res.setEncoding('utf8');
+      res.shouldKeepAlive = false;
       res.on('data', function (chunk) {
-        //console.log('BODY: ' + JSON.parse(chunk));
-        //callback(null,JSON.parse(chunk));
-        //console.log('data');
         str += chunk;
       });
       res.on('end', function () {
+        res.destroy();
         callback(null,JSON.parse(str));
       });
       req.on('error', function(e) {
@@ -255,11 +255,7 @@ module.exports = function(params){
       });
     });
 
-
-
     req.end();
-
-
     /*request.get({url: endpoint, qs: query},function (error, response, body) {
       if(error){
         callback(error,null);

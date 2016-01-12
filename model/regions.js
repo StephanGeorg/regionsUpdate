@@ -88,6 +88,7 @@ module.exports = function(params) {
     } else {
       query.search = 'name_equals';
     }
+
     q[query.search] = search[self.run.name];
 
     // add geo filter
@@ -343,7 +344,7 @@ module.exports = function(params) {
                       getSync(callback);
                     });
                   } else {
-                    var delay = Math.floor(((Math.random() * 2000) + 1));
+                    var delay = Math.floor(((Math.random() * 3000) + 1));
                     console.log("Geonames: waiting for " + delay/1000 + "s ...");
                     setTimeout(function () {
                       getSync(callback);
@@ -458,7 +459,8 @@ module.exports = function(params) {
    */
   this.get = function(params,callback){
 
-    var limit = params.fields.limit;
+    var limit = params.fields.limit,
+        _time = Date.now();
 
     MongoClient.connect(url, function(err, db) {
       assert.equal(null, err);
@@ -478,13 +480,15 @@ module.exports = function(params) {
             db.close();
           });
         } else {
+
           regions.find(params.query,params.fields).toArray(function(err_find,res_find){
             if(err_find){
               callback(err_find);
             } else {
+              //console.log("Left: " + count + " took " + (Date.now()-_time)/1000 + "s" + os.EOL);
               callback(null,res_find);
+              db.close();
             }
-            db.close();
           });
         }
       }
@@ -628,6 +632,11 @@ module.exports = function(params) {
 
 
 // Helper
+
+function shuffle(o){
+  for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+  return o;
+}
 
 function ucfirst(str) {
   str += '';
