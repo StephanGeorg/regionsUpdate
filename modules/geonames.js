@@ -12,7 +12,7 @@ var request = require('request'),
 module.exports = function(params){
 
   this.username = params.username  || null;
-  this.url = ['ws.geonames.net','secure.geonames.net'];
+  this.url = 'https://secure.geonames.net';
 
   this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4'],[],[]];
 
@@ -121,16 +121,12 @@ module.exports = function(params){
       }
 
       // maybe we can optimze this, but when does this happen ?
-      if(!mode.notgeo){
-        res = results[0];
-      } else {
 
-        res = this.getNearest(results,region);
-        if(res) {
-          console.log("Geonames: Found geonameID ".green + res.geonameId + " based on distance!".cyan);
-        } else {
-          console.log("Geonames: Not Found based on distance!".red);
-        }
+      res = this.getNearest(results,region);
+      if(res) {
+        console.log("Geonames: Found geonameID ".green + res.geonameId + " based on distance!".cyan);
+      } else {
+        console.log("Geonames: Not Found based on distance!".red);
       }
 
       if(res) {
@@ -202,9 +198,6 @@ module.exports = function(params){
     if(mode.fuzzy) {
       result.fuzzy = 1;
     }
-    if(mode.notgeo) {
-      result.notgeo = 1;
-    }
 
     return result;
 
@@ -219,45 +212,23 @@ module.exports = function(params){
       throw('Callback must be a function');
     }
 
-    var endpoint = type + 'JSON',
+    var endpoint = this.url + '/' + type + 'JSON',
         query = params || {},
-        r = {};
+        options = {};
 
     query.username = this.username;
 
-    var x = Math.floor(Math.random()*2);
-
-    if(x) {
-      r = https;
-    } else {
-      r = http;
-    }
-
-    var options = {
-      host: this.url[x],
-      path: '/' + endpoint + '?' + querystring.stringify(query),
-      method: 'GET',
+    options = {
+      timeout: 10000,
+      url: endpoint,
+      qs: query
     };
 
-    var req = r.request(options, function(res) {
-      var str = '';
-      res.setEncoding('utf8');
-      res.shouldKeepAlive = false;
-      res.on('data', function (chunk) {
-        str += chunk;
-      });
-      res.on('end', function () {
-        res.destroy();
-        callback(null,JSON.parse(str));
-      });
-      req.on('error', function(e) {
-        callback(e);
-      });
-    });
-
-    req.end();
-    /*request.get({url: endpoint, qs: query},function (error, response, body) {
+    var req = request.get(options, function (error, response, body) {
       if(error){
+        if(error.code === 'ETIMEDOUT'){
+          console.log("Geonames: GET Timeout fired!");
+        }
         callback(error,null);
       }
       if(response && response.statusCode !== 200){
@@ -266,7 +237,7 @@ module.exports = function(params){
       if(body){
         callback(null,JSON.parse(body));
       }
-    });*/
+    });
   };
 
 };

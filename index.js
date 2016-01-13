@@ -12,7 +12,8 @@ var region = new regions();
 // Get CLI arguments
 var args = process.argv.slice(2);
 
-var i = 1;
+var i = 1,
+    delay = 1;
 
 var params = {
 
@@ -21,11 +22,11 @@ var params = {
       "properties.admin_level": 6, //"geodata.geonames": {$exists: false},
       "osm": {$exists: true},
       //id:4276613,
-      //"rpath": "2528142",
-      //"rpath": {$nin: ["215477","215663","60189","60199","58974"/*,"214665"*/]},
+      //"rpath": "214665",
+      "rpath": {$nin: ["60189","1749218","1749219"]},
       $and: [
-        {$or: [{"lastModified": {$lt: moment().subtract(4,'hours').toDate() }},{"lastModified": {$exists: false},}],},
-        {$or: [/*{"geodata.geonames.found":false},*/{"geodata":{$exists:false}}],}
+        {$or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],},
+        {$or: [/*{"geodata.geonames.found":false}/*,*/{"geodata":{$exists:false}}],}
       ],
     },
     fields: {
@@ -38,17 +39,18 @@ var params = {
       "properties.admin_level": 8, //"geodata.geonames": {$exists: false},
       //"osm": {$exists: false},
       //"osm.area": { "$exists": false },
-      "osm.bbox.type": { "$exists": false },
-      $or: [{"lastModified": {$lt: moment().subtract(12,'hours').toDate() }},{"lastModified": {$exists: false},}],
+      "osm.area": { "$exists": false },
+      $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
     },
     fields: {
-      limit: 10,
+      limit: 3,
     },
   }
 
 };
 
 var query = params[getMode(args)];
+
 
 function getMode(args) {
   if(args.length){
@@ -62,17 +64,24 @@ function getMode(args) {
 var check = function(params){
   var _time = Date.now();
   region.get(query,function(err,res){
+
     if(err){
       console.log(err);
-    }
-
-    console.log("Getting the next " + res.length + " documents");
-
-    if(res.length) {
-      region.sync(getMode(args),res,function(err_sync,res_sync){
-        check(query);
-        console.log("Step " + i++ + " ready in " + (Date.now()-_time)/1000 + 's' + os.EOL );
-      });
+      console.log("Waiting to reconnect ... ");
+      setTimeout(check(query),10000);
+    } else {
+      if(res && res.length) {
+        console.log("Getting the next " + res.length + " documents");
+        delay = 1;
+        region.sync(getMode(args),res,function(err_sync,res_sync){
+          check(query);
+          console.log("Step " + i++ + " ready in " + (Date.now()-_time)/1000 + 's' + os.EOL );
+        });
+      } else {
+        delay *= 100;
+        console.log("No more documents! Waiting for reconnect in " + delay/1000 + 's');
+        setTimeout(check(query),delay);
+      }
     }
     return;
   });
