@@ -29,7 +29,6 @@ module.exports = function(params) {
       maxLevel: 0,
       admin: 0,
       fuzzy: 0,
-      notgeo: 0,
       reset: 0,
       run: 0,
       localrun: 0,
@@ -92,15 +91,17 @@ module.exports = function(params) {
     q[query.search] = search[self.run.name];
 
     // add geo filter
-    if(!self.run.notgeo && region.osm && region.osm.bbox) {
+    /*if(!self.run.notgeo && region.osm && region.osm.bbox) {
       q.west = region.osm.bbox.coordinates[0][0][0];
       q.east = region.osm.bbox.coordinates[0][2][0];
       q.south = region.osm.bbox.coordinates[0][0][1];
       q.north = region.osm.bbox.coordinates[0][1][1];
-    }
+    }*/
+
+    console.log(q);
 
     // add country
-    console.log("Geonames: Searching id: " + self.params[self.run.region].id.toString().underline + " " + q[query.search].red + " w/ "  /*+ q.fcode.yellow */ + " Mode: " +  query.search.blue + " Geo: "  + !self.run.notgeo);
+    console.log("Geonames: Searching id: " + self.params[self.run.region].id.toString().underline + " " + q[query.search].red + " Mode: " +  query.search.blue);
     return q;
 
   };
@@ -113,33 +114,29 @@ module.exports = function(params) {
       return this.run;
     }
 
-    if(!this.run.notgeo){
+    if(!this.run.fuzzy){
       // Run reseted by method
       if(!this.run.reset){
-        ++this.run.notgeo;
+        ++this.run.fuzzy;
       } else {
         this.run.reset = 0;
       }
     } else {
-      this.run.notgeo = 0;
-      this.run.admin = 0;
-      if(!this.run.fuzzy) {
-        ++this.run.fuzzy;
+      this.run.fuzzy = 0;
+      if(this.run.name < (this.run.maxName-1)) {
+        ++this.run.name;
+        this.run.notgeo = 0;
+        this.run.fuzzy = 0;
+        this.run.admin = 0;
       } else {
-        if(this.run.name < (this.run.maxName-1)) {
-          ++this.run.name;
-          this.run.notgeo = 0;
-          this.run.fuzzy = 0;
-          this.run.admin = 0;
+        if(this.run.region < (this.run.maxRegion-1)) {
+          this.resetRun();
         } else {
-          if(this.run.region < (this.run.maxRegion-1)) {
-            this.resetRun();
-          } else {
-            return false;
-          }
+          return false;
         }
       }
     }
+
     return this.run;
   };
 
@@ -155,49 +152,42 @@ module.exports = function(params) {
       return testRun;
     }
 
-    if(!testRun.notgeo){
+    if(!testRun.fuzzy){
       // Run reseted by method
       if(!testRun.reset){
-        ++testRun.notgeo;
+        ++testRun.fuzzy;
       } else {
         testRun.reset = 0;
       }
     } else {
-      testRun.notgeo = 0;
-      testRun.admin = 0;
-      if(!testRun.fuzzy) {
-        ++testRun.fuzzy;
+      testRun.fuzzy = 0;
+      if(testRun.name < (testRun.maxName-1)) {
+        ++testRun.name;
+        testRun.notgeo = 0;
+        testRun.fuzzy = 0;
+        testRun.admin = 0;
       } else {
-        if(testRun.name < (testRun.maxName-1)) {
-          ++testRun.name;
+        if(testRun.region < (testRun.maxRegion-1)) {
+          testRun.region++;
           testRun.notgeo = 0;
           testRun.fuzzy = 0;
+          testRun.name = 0;
           testRun.admin = 0;
+          testRun.localrun = 0;
+          testRun.country = null;
         } else {
-          if(testRun.region < (testRun.maxRegion-1)) {
-            testRun.region++;
-            testRun.notgeo = 0;
-            testRun.fuzzy = 0;
-            testRun.name = 0;
-            testRun.admin = 0;
-            testRun.localrun = 0;
-            testRun.country = null;
-          } else {
-            return false;
-          }
+          return false;
         }
       }
     }
+
     return testRun;
   };
 
   this.resetRun = function(){
-      console.log();
       this.run.region++;
-      this.run.notgeo = 0;
       this.run.fuzzy = 0;
       this.run.name = 0;
-      this.run.admin = 0;
       this.run.localrun = 0;
       //this.run.country = null;
   };
@@ -305,6 +295,7 @@ module.exports = function(params) {
               gn.get('search',query,function(err_gnget,res_gnget){
                 if(err_gnget) {
                   callback(err_gnget);
+                  return;
                 }
                 var res_search = gn.parseSearch(res_gnget,region,self.run);
                 if(res_search) {
@@ -344,7 +335,7 @@ module.exports = function(params) {
                       getSync(callback);
                     });
                   } else {
-                    var delay = Math.floor(((Math.random() * 3000) + 1));
+                    var delay = Math.floor(((Math.random() * 2000) + 1));
                     console.log("Geonames: waiting for " + delay/1000 + "s ...");
                     setTimeout(function () {
                       getSync(callback);
@@ -389,22 +380,24 @@ module.exports = function(params) {
 
               console.log("OSM: ✅  osm_id: ",result.id);
               // in callbak for save
-              self.save(result.id,{osm:result},1,function(){
-                if(self.run.region < (self.run.maxRegion-1)) {
-                  self.resetRun();
-                  getSync(callback);
-                } else {
-                  callback(null,result);
-                }
-              });
+              self.save(result.id,{osm:result},1,function(){});
+              if(self.run.region < (self.run.maxRegion-1)) {
+                self.resetRun();
+                getSync(callback);
+              } else {
+                callback(null,result);
+              }
               // in callback for save
             } else {
               console.log("OSM: not found ...");
               self.save(region.id,{osm:{found:false}},1,function(){
                 if(self.run.region < (self.run.maxRegion-1)) {
                   self.resetRun();
+                  getSync(callback);
+                } else {
+                  callback(true);
                 }
-                getSync(callback);
+
               });
 
             }
@@ -463,9 +456,11 @@ module.exports = function(params) {
         _time = Date.now();
 
     MongoClient.connect(url, function(err, db) {
-      assert.equal(null, err);
+      //assert.equal(null, err);
       if(err){
         console.log(err);
+        callback(err,null);
+        //db.close();
       } else {
         console.log("MongoDB: 📗  connection ready ...");
         regions = db.collection('regions');
@@ -487,8 +482,8 @@ module.exports = function(params) {
             } else {
               //console.log("Left: " + count + " took " + (Date.now()-_time)/1000 + "s" + os.EOL);
               callback(null,res_find);
-              db.close();
             }
+            db.close();
           });
         }
       }
