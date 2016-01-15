@@ -1,3 +1,4 @@
+
 var MongoClient = require('mongodb').MongoClient,
     assert = require('assert'),
     _ = require('underscore'),
@@ -169,12 +170,9 @@ module.exports = function(params) {
       } else {
         if(testRun.region < (testRun.maxRegion-1)) {
           testRun.region++;
-          testRun.notgeo = 0;
           testRun.fuzzy = 0;
           testRun.name = 0;
-          testRun.admin = 0;
           testRun.localrun = 0;
-          testRun.country = null;
         } else {
           return false;
         }
@@ -194,8 +192,10 @@ module.exports = function(params) {
 
   this.parseResult = function(type, result, callback) {
 
+    var region = this.params[this.run.region];
+
     switch(type) {
-      case 'geonames': gn.parseResult(result,true,this.run,function(err,res){
+      case 'geonames': gn.parseResult(result,true,this.run,region,function(err,res){
                           callback(err,res);
                        }); break;
       case 'osm':      return osm.parseResult(result);
@@ -216,11 +216,13 @@ module.exports = function(params) {
     } else {
       if(self.checkNext()){
         region = self.params[self.checkNext().region];
+      } else {
+
       }
     }
 
-    if(self.run.firstRunRegion === 1 || (self.checkNext() && (self.checkNext().region !== self.run.region))) {
-      if(region.properties.admin_level > 2 ) {
+    if(self.checkNext()) {
+      if(self.params[self.run.region].properties.admin_level > 2 ) {
         var params = {
           query: {
             id: parseInt(region.rpath[region.rpath.length-2])
@@ -242,6 +244,8 @@ module.exports = function(params) {
     } else {
       callback();
     }
+
+
   };
 
   this.sync = function(type,params,callback) {
@@ -251,6 +255,7 @@ module.exports = function(params) {
     this.run.maxRegion = this.params.length;
 
     switch(type) {
+      case 'update': this.ud(callback); break;
       case 'geonames': this.syncGeoname(callback); break;
       case 'osm':      this.syncOSM(callback); break;
       default: throw('Invalid Mode');
@@ -270,6 +275,13 @@ module.exports = function(params) {
       self.run.firstRunRegion = 0;
     }
 
+
+  };
+
+  /*
+   *  Geoname id exists, get Names
+   */
+  this.ud = function(callback){
 
   };
 
@@ -297,7 +309,7 @@ module.exports = function(params) {
                   callback(err_gnget);
                   return;
                 }
-                var res_search = gn.parseSearch(res_gnget,region,self.run);
+                var res_search = gn.parseSearch(res_gnget,self.params[self.run.region],self.run);
                 if(res_search) {
 
                   console.log("Geonames: Search found ...".green);
@@ -308,19 +320,14 @@ module.exports = function(params) {
                     if(res_detail) {
                       console.log("Geonames: geonameID found ...".green);
                       // save data to db
-                      self.save(self.params[self.run.region].id,{geodata:res_detail},1,function(err_save,res_save){
-                        self.resetRun();
-                        self.run.reset = 1;
-                        if(res_save) {
-                          if(self.run.region < (self.run.maxRegion-1)) {
-                            getSync(callback);
-                          } else {
-                            callback();
-                          }
-                        } else {
+                      self.save(self.params[self.run.region].id,{geodata:res_detail},1,function(err_save,res_save){});
+                      self.resetRun();
+                      self.run.reset = 1;
+                        if(self.run.region < (self.run.maxRegion-1)) {
                           getSync(callback);
+                        } else {
+                          callback();
                         }
-                      });
                     } else {
                       console.log("Geonames: geonameID not found ...".red);
                       getSync(callback);
@@ -330,10 +337,9 @@ module.exports = function(params) {
                 } else {
                   console.log("Geonames: ⛔ ");
                   if(self.checkNext().region !== self.run.region) {
-                    self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){
-                      self.run.country = null;
-                      getSync(callback);
-                    });
+                    self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){});
+                    self.run.country = null;
+                    getSync(callback);
                   } else {
                     var delay = Math.floor(((Math.random() * 2000) + 1));
                     console.log("Geonames: waiting for " + delay/1000 + "s ...");
@@ -480,10 +486,15 @@ module.exports = function(params) {
             if(err_find){
               callback(err_find);
             } else {
-              //console.log("Left: " + count + " took " + (Date.now()-_time)/1000 + "s" + os.EOL);
+              //regions.find(params.query).count(function(e,count){
+                //console.log("Left: " + count + " took " + (Date.now()-_time)/1000 + "s" + os.EOL);
+                db.close();
+              //});
+
               callback(null,res_find);
+
             }
-            db.close();
+
           });
         }
       }

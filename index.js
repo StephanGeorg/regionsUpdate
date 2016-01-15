@@ -19,14 +19,14 @@ var params = {
 
   geonames: {
     query: {
-      "properties.admin_level": 6, //"geodata.geonames": {$exists: false},
-      "osm": {$exists: true},
-      //id:4276613,
-      //"rpath": "214665",
-      "rpath": {$nin: ["60189","1749218","1749219"]},
+      "properties.admin_level": 4, //"geodata.geonames": {$exists: false},
+      "osm.center": {$exists: true},
+      //id: 147166,
+      //"rpath": "51477",
+      //"rpath": {$nin: ["60189","1749218","1749219"]},
       $and: [
-        {$or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],},
-        {$or: [/*{"geodata.geonames.found":false}/*,*/{"geodata":{$exists:false}}],}
+        {$or: [{"lastModified": {$lt: moment().subtract(8,'hours').toDate() }},{"lastModified": {$exists: false},}],},
+        //{$or: [/*{"geodata.geonames.found":false}/*,*/{"geodata":{$exists:false}}],}
       ],
     },
     fields: {
@@ -43,7 +43,7 @@ var params = {
       $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
     },
     fields: {
-      limit: 3,
+      limit: 2,
     },
   }
 

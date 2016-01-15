@@ -14,7 +14,7 @@ module.exports = function(params){
   this.username = params.username  || null;
   this.url = 'https://secure.geonames.net';
 
-  this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4'],[],[]];
+  this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4','ADM2'],[],[]];
 
 
   /*
@@ -28,10 +28,10 @@ module.exports = function(params){
   /*
    *  Parse result from geonames
    */
-  this.parseResult = function(result,detailed,mode,callback) {
+  this.parseResult = function(result,detailed,run,region,callback) {
 
     if(detailed){
-      this.parseResultDetailed(result,mode,function(error_parse,result_parse){
+      this.parseResultDetailed(result,run,region,function(error_parse,result_parse){
         if(error_parse) {
           callback(error_parse);
         }
@@ -46,7 +46,7 @@ module.exports = function(params){
   /*
    *  Parse detailed result
    */
-  this.parseResultDetailed = function(result,mode,callback) {
+  this.parseResultDetailed = function(result,run,region,callback) {
 
     var self = this;
 
@@ -56,6 +56,7 @@ module.exports = function(params){
           callback(err_get);
         }
         if(res_get) {
+
           var data = {
             geonames: {
               id: res_get.geonameId,
@@ -70,17 +71,19 @@ module.exports = function(params){
                   res_get.lat,
                 ]
               },
-              match: self.exactMatch(mode)
-            }
+              match: self.exactMatch(run)
+            },
+            wiki: self.getWiki(res_get,region),
+            names: self.orderName(res_get,region,run.country)
           };
           if(res_get.timezone) {
             data.geonames.timezone = res_get.timezone;
           }
-          if(res_get.wikipediaURL) {
+          /*if(res_get.wikipediaURL) {
             data.wiki = {
               url: res_get.wikipediaURL
             };
-          }
+          }*/
           callback(null,data);
         }
       });
@@ -102,9 +105,12 @@ module.exports = function(params){
 
     if(result.totalResultsCount) {
 
+      //console.log(results);
+      res = this.getNearest(result.geonames,region);
+
       // search for specific fcode
       _.each(levels,function(level){
-        _.each(result.geonames,function(geoname){
+        _.each(res,function(geoname){
           if(level === geoname.fcode) {
             results.push(geoname);
           }
@@ -120,18 +126,8 @@ module.exports = function(params){
         console.log("Geonames: 🖖  Multiple results found!");
       }
 
-      // maybe we can optimze this, but when does this happen ?
+      return results[0];
 
-      res = this.getNearest(results,region);
-      if(res) {
-        console.log("Geonames: Found geonameID ".green + res.geonameId + " based on distance!".cyan);
-      } else {
-        console.log("Geonames: Not Found based on distance!".red);
-      }
-
-      if(res) {
-        return res;
-      }
     }
     return;
   };
@@ -153,7 +149,7 @@ module.exports = function(params){
     };
     var distance = turf.distance(p1,p2);
 
-    console.log("Geonames: check distances: " + min + " 50% of bbox: " + ((distance/2)+(distance*0.5)));
+    //console.log("Geonames: check distances: " + min + " 50% of bbox: " + ((distance/2)+(distance*0.5)));
 
     if(min < ((distance/2)+(distance*0.5))) {
       return true;
@@ -167,7 +163,8 @@ module.exports = function(params){
    */
   this.getNearest = function(result,region){
     var dists = [],
-        reg = [];
+        reg = [],
+        self = this;
     _.each(result,function(sr){
       var point1 = {
         "type": "Feature",
@@ -180,16 +177,18 @@ module.exports = function(params){
         "type": "Feature",
         "geometry": region.osm.center
       };
-      dists.push(turf.distance(point1,point2));
-      reg.push(sr);
+      var distance = turf.distance(point1,point2);
+      if(self.checkNearest(distance,region)){
+        sr.distance = distance;
+        reg.push(sr);
+      }
     });
-    var minimum = Array.min(dists);
-    var index = dists.indexOf(minimum);
 
-    if(this.checkNearest(minimum,region)) {
-      return reg[index];
-    }
-    return;
+    reg = _.sortBy(reg, function(o) {
+      return o.distance;
+    });
+
+    return reg;
   };
 
   this.exactMatch = function(mode){
@@ -200,6 +199,144 @@ module.exports = function(params){
     }
 
     return result;
+
+  };
+
+
+  /*
+   *
+   */
+  this.orderName = function(result, region, country){
+
+    region.country = country || {};
+
+    var name = {},
+        altsGeonames = result.alternateNames,
+        altsOsm = region.properties.tags,
+        alts = [],
+        official = [];
+
+    if(altsGeonames.length) {
+      _.each(altsGeonames,function(name){
+        if(name.lang && (name.lang.length === 2 || name.lang.length === 3)) {
+          if(!_.findWhere(alts,{lang: name.lang,name: name.name})) {
+            alts.push({
+              lang: name.lang,
+              name: name.name
+            });
+          }
+        }
+      });
+    }
+
+    var scans = ['name:','long_name:','official_name:'];
+
+    _.each(scans,function(scan,scan_key){
+      _.each(altsOsm,function(name, key){
+        if(key.indexOf(scan) === 0) {
+          var lang = key.replace(scan,'');
+          if(!_.findWhere(alts,{lang: lang,name: name})){
+            if(scan_key === 0) {
+              if(lang !== 'prefix') {
+                alts.push({lang: lang, name: name});
+              }
+            }
+          } else {
+            // remove long names
+            if(scan_key === 1 || scan_key === 2) {
+              alts = _.without(alts, _.findWhere(alts, {lang: lang, name: name}));
+              official.push({lang: lang, name: name});
+            }
+          }
+        }
+      });
+    });
+
+    alts = _.sortBy(alts, function(o) {
+      return o.lang;
+    });
+
+    return {
+      names: {
+        localnames: this.getLocalNames(result,region,alts),
+        i18n: alts,
+        official: official
+      }
+    };
+
+  };
+
+  this.getLocalNames = function(result,region,alts){
+
+    var langs = region.country.geodata.languages,
+        localnames = [],
+        alternativs = alts || region.geodata.names.i18n,
+        l;
+
+    _.each(langs,function(lang){
+
+      l = _.where(alts, {lang: lang.iso6391});
+      if(!l) {
+        l = _.where(alts, {lang: lang.iso6392});
+      }
+
+      if(l){
+        _.each(l,function(n){
+          localnames.push(n);
+        });
+      }
+    });
+
+    if(!localnames.length) {
+      var name = _.find(alternativs,{name:result.name});
+      if(name){
+        localnames.push(name);
+      } else {
+        localnames.push({
+          name: result.name
+        });
+      }
+    }
+
+    return localnames;
+
+  };
+
+  /*
+   *
+   */
+  this.getWiki = function(result,region){
+
+    var wiki = {},
+        tags = {};
+    wiki.url = [];
+
+    if(region.properties && region.properties.tags) {
+      tags = region.properties.tags;
+      if(tags.wikidata) {
+        wiki.wikidata = tags.wikidata;
+      }
+      if(tags.wikipedia) {
+        wiki.wikipedia = tags.wikipedia;
+      }
+      if(result.wikipediaURL) {
+        wiki.url.push(result.wikipediaURL);
+      }
+    }
+
+    _.each(result.alternateNames,function(names){
+      if(names.lang && names.lang === 'link') {
+        if(names.name.indexOf('wiki') !== -1) {
+          var link = names.name.replace('https://','');
+          link = names.name.replace('http://','');
+          wiki.url.push(link);
+        }
+      }
+    });
+
+    wiki.url = _.uniq(wiki.url);
+
+    return wiki;
 
   };
 
