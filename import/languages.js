@@ -95,8 +95,8 @@ save({
   where: {
   },
   data: {
-    $unset: {
-      "properties.tags.timezone": "",
+    $rename: {
+      "geodata.codes.iso31662": "geodata.codes.iso3166",
     }
   },
   options: {

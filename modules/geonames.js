@@ -257,19 +257,24 @@ module.exports = function(params){
     });
 
     return {
-      names: {
-        localnames: this.getLocalNames(result,region,alts),
-        i18n: alts,
-        official: official
-      }
+      localnames: this.getLocalNames(result,region,alts),
+      i18n: alts,
+      official: official
     };
 
   };
 
   this.getLocalNames = function(result,region,alts){
 
-    var langs = region.country.geodata.languages,
-        localnames = [],
+    var langs;
+
+    if(region.properties.admin_level === 2) {
+      langs = region.geodata.languages;
+    } else {
+      langs = region.country.geodata.languages;
+    }
+
+    var localnames = [],
         alternativs = alts || region.geodata.names.i18n,
         l;
 
