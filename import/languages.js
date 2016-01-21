@@ -93,10 +93,14 @@ function getQuery(h) {
 
 save({
   where: {
+    //"geodata.geonames.country": "FI"
+    //rpath: "60199"
   },
   data: {
     $rename: {
-      "geodata.codes.iso31662": "geodata.codes.iso3166",
+      //"geodata.codes.koatuu": "",
+      //"properties.tags.ref:at:gkz": "geodata.codes.uk:ons",
+      "geodata.codes.uk:ons2" : "geodata.codes.uk:ons"
     }
   },
   options: {

@@ -78,15 +78,21 @@ function getQuery(h) {
   }*/
 
   save({ where: {
-      $or: [
-        { "geodata.names.localnames.name": { $regex: new RegExp("^" + iso.name.toLowerCase(), "i") }},
-        { "geodata.names.i18n.name": { $regex: new RegExp("^" + iso.name.toLowerCase(), "i") }},
-        { "geodata.names.official.name": { $regex: new RegExp("^" + iso.name.toLowerCase(), "i") }},
-        { "properties.name": { $regex: new RegExp("^" + iso.name.toLowerCase(), "i") }},
-        { "geodata.codes.iso3166.code": iso.country + '-' + iso.code },
+      $and: [{
+          $or: [
+            { "geodata.names.localnames.name": { $regex: new RegExp("^" + iso.name.toLowerCase(), "i") }},
+            { "geodata.names.i18n.name": { $regex: new RegExp("^" + iso.name.toLowerCase(), "i") }},
+            { "geodata.names.official.name": { $regex: new RegExp("^" + iso.name.toLowerCase(), "i") }},
+            { "properties.name": { $regex: new RegExp("^" + iso.name.toLowerCase(), "i") }},
+            { "geodata.codes.iso3166.code": iso.country + '-' + iso.code },
+          ]
+        },
+        { $or: [
+            { "properties.admin_level": 4 },
+            { "properties.admin_level": 6 },
+        ]}
       ],
       "geodata.geonames.country": iso.country,
-      "properties.admin_level": level
     },
     data: {
       $set: {"geodata.codes.iso3166": {

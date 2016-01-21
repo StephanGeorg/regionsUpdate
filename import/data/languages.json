@@ -612,8 +612,8 @@
     "Country":"China",
     "LanguageEN":"Mandarin",
     "Language":"官話/官话 Guānhuà",
-    "Code1":"",
-    "Code2":"cmn"
+    "Code1":"zh",
+    "Code2":"zhi"
   },
   {
     "ISO":"CO",
@@ -1260,7 +1260,7 @@
     "Country":"Israel",
     "LanguageEN":"Hebrew",
     "Language":"עברית ʿIvrit",
-    "Code1":"",
+    "Code1":"he",
     "Code2":"heb"
   },
   {
@@ -1580,7 +1580,7 @@
     "Country":"Sri Lanka",
     "LanguageEN":"Sinhala",
     "Language":"සිංහල signhala",
-    "Code1":"",
+    "Code1":"si",
     "Code2":"sin"
   },
   {
@@ -2258,10 +2258,10 @@
   {
     "ISO":"PH",
     "Country":"Philippines",
-    "LanguageEN":"Filipino",
-    "Language":"Filipino",
-    "Code1":"",
-    "Code2":"fil"
+    "LanguageEN":"Tagalog",
+    "Language":"Tagalog",
+    "Code1":"tl",
+    "Code2":"tgl"
   },
   {
     "ISO":"PK",
@@ -2516,8 +2516,8 @@
     "Country":"Singapore",
     "LanguageEN":"Mandarin",
     "Language":"官話/官话 Guānhuà",
-    "Code1":"",
-    "Code2":"cmn"
+    "Code1":"zh",
+    "Code2":"zhi"
   },
   {
     "ISO":"SG",
@@ -2860,8 +2860,8 @@
     "Country":"Taiwan",
     "LanguageEN":"Mandarin",
     "Language":"官話/官话 Guānhuà",
-    "Code1":"",
-    "Code2":"cmn"
+    "Code1":"zh",
+    "Code2":"zhi"
   },
   {
     "ISO":"TZ",

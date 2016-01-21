@@ -325,7 +325,17 @@ module.exports = function(params) {
                     if(res_detail) {
                       console.log("Geonames: geonameID found ...".green);
                       // save data to db
-                      self.save(self.params[self.run.region].id,{geodata:res_detail},1,function(err_save,res_save){});
+                      var data = {};
+                      _.each(res_detail,function(v,k){
+                        if(k === 'names') {
+                          _.each(v,function(vl,key){
+                            data['geodata.names.' + key] = vl;
+                          });
+                        } else {
+                          data["geodata." + k] = v;
+                        }
+                      });
+                      self.save(self.params[self.run.region].id,data,1,function(err_save,res_save){});
                       self.resetRun();
                       self.run.reset = 1;
                         if(self.run.region < (self.run.maxRegion-1)) {
@@ -342,7 +352,7 @@ module.exports = function(params) {
                 } else {
                   console.log("Geonames: ⛔ ");
                   if(self.checkNext().region !== self.run.region) {
-                    self.save(self.params[self.run.region].id,{geodata:{geonames:{found:false}}},1,function(){});
+                    self.save(self.params[self.run.region].id,{ "geodata.geonames.found": false },1,function(){});
                     self.run.country = null;
                     getSync(callback);
                   } else {
@@ -513,7 +523,7 @@ module.exports = function(params) {
       if(key === 'int_name' || key.indexOf('name:') === 0 || key.indexOf('official_name') === 0 || key.indexOf('long_name') === 0) {
         if(key === 'int_name') {
           names.unshift(name.trim());
-        } else if(key.indexOf('name:ru') === -1 && key.indexOf('name:kk') === -1) {
+        } else {
           names.push(name.trim());
         }
       }

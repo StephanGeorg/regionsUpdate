@@ -259,7 +259,7 @@ module.exports = function(params){
     return {
       localnames: this.getLocalNames(result,region,alts),
       i18n: alts,
-      official: official
+      //official: official
     };
 
   };

@@ -20,13 +20,14 @@ var params = {
   geonames: {
     query: {
       "properties.admin_level": 6,
-      "geodata.names": {$exists: false},
+      //"geodata.names": {$exists: false},
       "osm.center": {$exists: true},
+      "geodata.names.localnames.lang": { "$exists": false },
       //id: 147166,
       //"rpath": "51477",
       //"rpath": {$nin: ["195838"]},
       $and: [
-        {$or: [{"lastModified": {$lt: moment().subtract(8,'hours').toDate() }},{"lastModified": {$exists: false},}],},
+        {$or: [{"lastModified": {$lt: moment().subtract(4,'days').toDate() }},{"lastModified": {$exists: false},}],},
         //{$or: [/*{"geodata.geonames.found":false}/*,*/{"geodata":{$exists:false}}],}
       ],
     },
@@ -37,11 +38,11 @@ var params = {
 
   osm: {
     query: {
-      "properties.admin_level": 4, //"geodata.geonames": {$exists: false},
+      "properties.admin_level": 8, //"geodata.geonames": {$exists: false},
       //"osm": {$exists: false},
       //"osm.area": { "$exists": false },
       "osm.area": { "$exists": false },
-      $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
+      $or: [{"lastModified": {$lt: moment().subtract(1,'days').toDate() }},{"lastModified": {$exists: false},}],
     },
     fields: {
       limit: 2,
