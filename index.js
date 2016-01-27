@@ -19,15 +19,15 @@ var params = {
 
   geonames: {
     query: {
-      "properties.admin_level": 6,
+      "properties.admin_level": 8,
       //"geodata.names": {$exists: false},
       "osm.center": {$exists: true},
-      "geodata.names.localnames.lang": { "$exists": false },
+      "geodata.names": { "$exists": false },
       //id: 147166,
-      //"rpath": "51477",
-      //"rpath": {$nin: ["195838"]},
+      "rpath": "51477",
+      //"rpath": {$nin: ["60189","286393","72596"]},
       $and: [
-        {$or: [{"lastModified": {$lt: moment().subtract(4,'days').toDate() }},{"lastModified": {$exists: false},}],},
+        {$or: [{"lastModified": {$lt: moment().subtract(3,'hours').toDate() }},{"lastModified": {$exists: false},}],},
         //{$or: [/*{"geodata.geonames.found":false}/*,*/{"geodata":{$exists:false}}],}
       ],
     },
@@ -38,11 +38,11 @@ var params = {
 
   osm: {
     query: {
-      "properties.admin_level": 8, //"geodata.geonames": {$exists: false},
+      "properties.admin_level": 10, //"geodata.geonames": {$exists: false},
       //"osm": {$exists: false},
       //"osm.area": { "$exists": false },
       "osm.area": { "$exists": false },
-      $or: [{"lastModified": {$lt: moment().subtract(1,'days').toDate() }},{"lastModified": {$exists: false},}],
+      $or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],
     },
     fields: {
       limit: 2,
@@ -80,9 +80,11 @@ var check = function(params){
           console.log("Step " + i++ + " ready in " + (Date.now()-_time)/1000 + 's' + os.EOL );
         });
       } else {
-        delay *= 100;
-        console.log("No more documents! Waiting for reconnect in " + delay/1000 + 's');
-        setTimeout(check(query),delay);
+        setTimeout(function(){
+          delay *= 100;
+          console.log("No more documents! Waiting for reconnect in " + delay/1000 + 's');
+          check(query);
+        },delay);
       }
     }
     return;
