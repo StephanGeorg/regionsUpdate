@@ -569,7 +569,7 @@ module.exports = function(params) {
     }
 
     // add standard rules
-    rule[0].push({name:'Province'},{name:'Subdistrict'},{name:'District'},{name:'Region'},{name:'Municipality'},{name:'County'},{name:'Chiefdom'});
+    rule[0].push({name:'Province'},{name:'Subdistrict'},{name:'District'},{name:'Region'},{name:'Local Municipality'},{name:'Municipality'},{name:'County'},{name:'Chiefdom'});
     return _.uniq(rule);
 
   };
