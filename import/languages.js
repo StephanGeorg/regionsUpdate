@@ -97,10 +97,11 @@ save({
     //rpath: "60199"
   },
   data: {
-    $rename: {
+    $unset: {
       //"geodata.codes.koatuu": "",
       //"properties.tags.ref:at:gkz": "geodata.codes.uk:ons",
-      "geodata.codes.uk:ons2" : "geodata.codes.uk:ons"
+      //"geodata.codes.uk:ons2" : "geodata.codes.uk:ons"
+      "properties.tags.admin_level": ""
     }
   },
   options: {

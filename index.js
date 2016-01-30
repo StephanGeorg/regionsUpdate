@@ -24,7 +24,7 @@ var params = {
       "osm.center": {$exists: true},
       "geodata.names": { "$exists": false },
       //id: 147166,
-      "rpath": "62149",
+      "rpath": "148838",
       //"rpath": {$nin: ["60189","286393","72596"]},
       $and: [
         {$or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],},
