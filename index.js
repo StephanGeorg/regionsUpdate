@@ -27,7 +27,7 @@ var params = {
       "rpath": "148838",
       //"rpath": {$nin: ["60189","286393","72596"]},
       $and: [
-        {$or: [{"lastModified": {$lt: moment().subtract(1,'hours').toDate() }},{"lastModified": {$exists: false},}],},
+        {$or: [{"lastModified": {$lt: moment().subtract(0.001,'hours').toDate() }},{"lastModified": {$exists: false},}],},
         //{$or: [/*{"geodata.geonames.found":false}/*,*/{"geodata":{$exists:false}}],}
       ],
     },
@@ -38,7 +38,7 @@ var params = {
 
   osm: {
     query: {
-      "properties.admin_level": 9, //"geodata.geonames": {$exists: false},
+      "properties.admin_level": 12, //"geodata.geonames": {$exists: false},
       //"osm": {$exists: false},
       //"osm.area": { "$exists": false },
       "osm.area": { "$exists": false },
