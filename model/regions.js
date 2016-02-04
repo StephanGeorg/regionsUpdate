@@ -442,6 +442,7 @@ module.exports = function(params) {
     MongoClient.connect(url, function (err, db) {
       if (err) {
         console.log('Unable to connect to the mongoDB server. Error:', err);
+        callback(err);
       } else {
         regions = db.collection('regions');
         if(mod){
@@ -501,10 +502,10 @@ module.exports = function(params) {
             if(err_find){
               callback(err_find);
             } else {
-              //regions.find(params.query).count(function(e,count){
-                //console.log("Left: " + count + " took " + (Date.now()-_time)/1000 + "s" + os.EOL);
+              regions.find(params.query).count(function(e,count){
+                console.log("Left: " + count + " took " + (Date.now()-_time)/1000 + "s" + os.EOL);
                 db.close();
-              //});
+              });
 
               callback(null,res_find);
 

@@ -24,10 +24,10 @@ var params = {
       "osm.center": {$exists: true},
       "geodata.names": { "$exists": false },
       //id: 147166,
-      "rpath": "148838",
-      //"rpath": {$nin: ["60189","286393","72596"]},
+      "rpath": {$in: ["16239","59518","1428125","214885","218657","21335","14296","51684","79510","58974"]},
+      //"rpath": {$nin: ["60189","60199","148838"]},
       $and: [
-        {$or: [{"lastModified": {$lt: moment().subtract(0.001,'hours').toDate() }},{"lastModified": {$exists: false},}],},
+        {$or: [{"lastModified": {$lt: moment().subtract(1,'day').toDate() }},{"lastModified": {$exists: false},}],},
         //{$or: [/*{"geodata.geonames.found":false}/*,*/{"geodata":{$exists:false}}],}
       ],
     },
@@ -70,7 +70,9 @@ var check = function(params){
     if(err){
       console.log(err);
       console.log("Waiting to reconnect ... ");
-      setTimeout(check(query),10000);
+      setTimeout(function(){
+        check(query);
+      },10000);
     } else {
       if(res && res.length) {
         console.log("Getting the next " + res.length + " documents");
