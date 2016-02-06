@@ -24,10 +24,10 @@ var params = {
       "osm.center": {$exists: true},
       "geodata.names": { "$exists": false },
       //id: 147166,
-      "rpath": {$in: ["16239","59518","1428125","214885","218657","21335","14296","51684","79510","58974"]},
+      //"rpath": {$in: ["49715","72594","59065","3630439","1768185"]},
       //"rpath": {$nin: ["60189","60199","148838"]},
       $and: [
-        {$or: [{"lastModified": {$lt: moment().subtract(1,'day').toDate() }},{"lastModified": {$exists: false},}],},
+        {$or: [{"lastModified": {$lt: moment().subtract(3,'days').toDate() }},{"lastModified": {$exists: false},}],},
         //{$or: [/*{"geodata.geonames.found":false}/*,*/{"geodata":{$exists:false}}],}
       ],
     },

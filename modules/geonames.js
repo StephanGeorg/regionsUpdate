@@ -214,7 +214,7 @@ module.exports = function(params){
         alts = [],
         official = [];
 
-    if(altsGeonames.length) {
+    if(altsGeonames && altsGeonames.length) {
       _.each(altsGeonames,function(name){
         if(name.lang && (name.lang.length === 2 || name.lang.length === 3)) {
           if(!_.findWhere(alts,{lang: name.lang,name: name.name})) {
