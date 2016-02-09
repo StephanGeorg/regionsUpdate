@@ -14,7 +14,7 @@ module.exports = function(params){
   this.username = params.username  || null;
   this.url = 'http://ws.geonames.net';
 
-  this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4','ADM2','ADMD','PPLA3','PPLA2','PPLA','PPL'],[],['ADM4','ADM3','PPLX','PPL','ADMD','PPLL']];
+  this.levels = [[],[],['PCLI','PCLD','PCLS','PCLF','PCL'],[],['ADM1','ADM2','ADMD','ADM1H'],[],['ADM2','ADM3','ADMD'],[],['ADM3','ADM4','ADM2','ADMD','PPLA3','PPLA2','PPLA','PPL','PPLC','PPLA4'],[],['ADM4','ADM3','PPLX','PPL','ADMD','PPLL']];
 
 
   /*
